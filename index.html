@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>El Laburador | Videojuego web educativo</title>
+  <meta name="description" content="El Laburador: un videojuego web en 3D donde practicás cálculo mental atendiendo un kiosco de barrio.">
+  <meta name="theme-color" content="#070708">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="navbar" id="navbar">
+    <a href="#inicio" class="logo">EL <span>LABURADOR</span></a>
+    <nav class="menu" id="menu">
+      <a href="#juego">El juego</a>
+      <a href="#caminos">Caminos</a>
+      <a href="#capturas">Capturas</a>
+      <a href="#equipo">Equipo</a>
+      <a href="#" class="btn btn-rojo btn-jugar">Jugar</a>
+    </nav>
+    <button class="burger" id="burger" aria-label="Abrir menú">&#9776;</button>
+  </header>
+
+  <section class="hero" id="inicio">
+    <div class="hero-contenido">
+      <p class="etiqueta">Videojuego web educativo en 3D</p>
+      <h1>EL <span>LABURADOR</span></h1>
+      <p class="hero-texto">Quedás a cargo del kiosco del barrio. Tu hermano está preso y tenés pocas semanas para juntar la fianza. Cada vuelto que calculás mal te cuesta plata.</p>
+      <div class="hero-botones">
+        <a href="#" class="btn btn-rojo btn-jugar">&#9654; Jugar ahora</a>
+        <a href="#juego" class="btn btn-gris">Conocer el juego</a>
+      </div>
+    </div>
+  </section>
+
+  <main>
+
+    <section class="seccion reveal" id="juego">
+      <h2>El juego</h2>
+      <p class="intro">Atendés clientes, manejás tu stock y decidís cuánto cobrar. El juego no te muestra el total ni el vuelto: lo tenés que calcular vos de cabeza.</p>
+
+      <div class="datos">
+        <div class="dato"><strong>$20.000</strong><span>de fianza para juntar</span></div>
+        <div class="dato"><strong>2</strong><span>semanas de 6 días</span></div>
+        <div class="dato"><strong>10</strong><span>clientes por día</span></div>
+        <div class="dato"><strong>3</strong><span>caminos y finales</span></div>
+      </div>
+
+      <div class="pasos">
+        <div class="paso"><b>1</b><h3>Atendé</h3><p>Un cliente te pide productos y te da plata.</p></div>
+        <div class="paso"><b>2</b><h3>Calculá</h3><p>Sumá el pedido y pensá el vuelto sin ayuda.</p></div>
+        <div class="paso"><b>3</b><h3>Entregá</h3><p>Si te equivocás, perdés plata o sube tu estrés.</p></div>
+        <div class="paso"><b>4</b><h3>Decidí</h3><p>Fiado, precios, eventos y qué camino seguir.</p></div>
+      </div>
+    </section>
+
+    <section class="seccion reveal" id="caminos">
+      <h2>Elegí tu camino</h2>
+      <p class="intro">Tus decisiones llevan la historia para distintos lados. Cada camino tiene su propio final.</p>
+      <div class="caminos">
+        <article class="path-card">
+          <span class="num">01</span>
+          <h3>El capo</h3>
+          <p>El camino del jefe del barrio. Rápido, riesgoso y con consecuencias.</p>
+        </article>
+        <article class="path-card">
+          <span class="num">02</span>
+          <h3>El abogado</h3>
+          <p>La salida por la ley. Más lenta, pero con otro tipo de final.</p>
+        </article>
+        <article class="path-card">
+          <span class="num">03</span>
+          <h3>La policía</h3>
+          <p>Un camino que te cruza con la autoridad y te obliga a decidir de qué lado estás.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="seccion reveal" id="capturas">
+      <h2>Capturas</h2>
+      <p class="intro">Un vistazo al kiosco y a cómo se ve el juego.</p>
+      <div class="carrusel">
+        <button class="flecha izq" id="prev" aria-label="Anterior">&#10094;</button>
+        <div class="pista" id="pista">
+          <figure class="slide" style="--img:url('captura1.jpg')"><figcaption>Pantalla de inicio y manual</figcaption></figure>
+          <figure class="slide" style="--img:url('captura2.jpg')"><figcaption>El kiosco y el panel de control</figcaption></figure>
+          <figure class="slide" style="--img:url('captura3.jpg')"><figcaption>Resultado de una venta con vuelto</figcaption></figure>
+          <figure class="slide" style="--img:url('captura4.jpg')"><figcaption>Mensajes del hermano</figcaption></figure>
+        </div>
+        <button class="flecha der" id="next" aria-label="Siguiente">&#10095;</button>
+      </div>
+    </section>
+
+    <section class="seccion reveal" id="equipo">
+      <h2>El equipo</h2>
+      <p class="intro">Proyecto de la E.E.S. Técnica N°1 · Docente: Diego Callamullo</p>
+      <div class="equipo">
+        <div class="persona"><div class="avatar">TJ</div><h3>Tobías Juárez</h3><p>Programación y gráficos</p></div>
+        <div class="persona"><div class="avatar">SL</div><h3>Sebastián López</h3><p>Líder y base de datos</p></div>
+        <div class="persona"><div class="avatar">SA</div><h3>Sofía Aguilar</h3><p>Portal web y documentación</p></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="logo">EL <span>LABURADOR</span></div>
+    <p>TP 2 · Videojuego Web · E.E.S. Técnica N°1</p>
+    <a href="https://github.com/aguilarsofiaanto/el_laburador" target="_blank" rel="noopener">Ver el repositorio en GitHub</a>
+  </footer>
+
+  <button class="chat-boton" id="chatBoton" aria-label="Abrir chat de consultas">&#128172;</button>
+  <section class="chat" id="chat" aria-label="Chat de consultas">
+    <div class="chat-cabecera">
+      <div><strong>Asistente</strong><small>Preguntame sobre el juego</small></div>
+      <button id="chatCerrar" aria-label="Cerrar chat">&times;</button>
+    </div>
+    <div class="chat-mensajes" id="chatMensajes"></div>
+    <div class="chat-rapidas" id="chatRapidas"></div>
+    <div class="chat-entrada">
+      <input type="text" id="chatTexto" placeholder="Escribí tu consulta..." autocomplete="off">
+      <button id="chatEnviar">Enviar</button>
+    </div>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
