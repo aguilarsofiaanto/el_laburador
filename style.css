@@ -1,0 +1,37 @@
+/* ===== Colores y base ===== */
+:root{
+  --negro:#070708;
+  --negro2:#0d0e10;
+  --grafito:#151619;
+  --grafito2:#1d1f23;
+  --rojo:#e50914;
+  --rojo-osc:#b20710;
+  --rojo-claro:#ff2a35;
+  --texto:#f2f2f2;
+  --gris:#a8a8ad;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{background:var(--negro);color:var(--texto);font-family:'Inter',Arial,sans-serif;line-height:1.6;overflow-x:hidden}
+h1,h2,h3,.logo{font-family:'Oswald',Impact,sans-serif;text-transform:uppercase;letter-spacing:.5px}
+a{color:inherit;text-decoration:none}
+img,video{max-width:100%;display:block}
+
+/* ===== Navbar ===== */
+.navbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:14px 5%;background:linear-gradient(to bottom,rgba(7,7,8,.95),rgba(7,7,8,.6));backdrop-filter:blur(6px)}
+.logo{font-size:1.5rem;font-weight:700;color:#fff}
+.logo span{color:var(--rojo)}
+.menu{display:flex;align-items:center;gap:22px}
+.menu a{font-size:.95rem;color:var(--gris);transition:color .2s}
+.menu a:hover{color:#fff}
+.menu .btn{color:#fff;padding:8px 20px}
+.burger{display:none;background:none;border:0;color:#fff;font-size:1.8rem;cursor:pointer}
+
+/* ===== Botones ===== */
+.btn{display:inline-block;padding:13px 28px;border-radius:6px;font-weight:600;font-size:1rem;border:0;cursor:pointer;transition:transform .2s,background .2s,box-shadow .2s}
+.btn-rojo{background:var(--rojo);color:#fff}
+.btn-rojo:hover{background:var(--rojo-claro);transform:translateY(-2px);box-shadow:0 8px 24px rgba(229,9,20,.4)}
+.btn-gris{background:rgba(109,109,110,.5);color:#fff}
+.btn-gris:hover{background:rgba(109,109,110,.8);transform:translateY(-2px)}
+
+/* ===== Inicio ===== */
