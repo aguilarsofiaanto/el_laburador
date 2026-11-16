@@ -37,29 +37,46 @@ function cerrarEventoGrande() {
 
 // ==========================================================
 // ORQUESTACIÓN: qué evento se dispara al cerrar la semana
-// El return después de cada uno garantiza que no aparezca
-// más de un evento por semana.
+// Se decide UNA vez al cerrar la semana (y se guarda), y se
+// muestra cuando el jugador toca "Continuar" en el balance.
+// Nunca hay más de un evento por semana.
 // ==========================================================
+function elegirEventoSemana() {
+  // 1. ¿Viene el sicario? (solo si delató antes; va primero porque
+  //    tu hermano ya salió y la historia termina con esto)
+  if (debeVenirSicario()) return 'sicario';
+
+  // 2. ¿Terminó la partida?
+  if (evaluarFinal()) return 'final';
+
+  // 3. Eventos de los caminos, por prioridad narrativa
+  if (ofrecerAbogado())        return 'abogado';
+  if (ofrecerCoima())          return 'policia';
+  if (ofrecerProteccionCapo()) return 'capo';
+
+  // 4. Semana tranquila
+  return null;
+}
+
 function continuarTrasBalance() {
   cerrarDialogoCliente();
 
-  // 1. ¿Terminó la partida?
-  const final = evaluarFinal();
-  if (final) {
-    renderFinal(final);
-    return;
+  switch (caminos.eventoPendiente) {
+    case 'final':   renderFinal(caminos.finalObtenido); return;
+    case 'sicario': mostrarSicario(); return;
+    case 'abogado': eventoAbogado(resolverEventoSemana); return;
+    case 'policia': eventoPolicia(resolverEventoSemana); return;
+    case 'capo':    eventoCapo(resolverEventoSemana); return;
   }
 
-  // 2. ¿Viene el sicario? (solo si delató antes)
-  if (chequearSicario()) return;
-
-  // 3. Eventos de los caminos, por prioridad narrativa
-  if (ofrecerAbogado())        { eventoAbogado(mostrarResultadoEvento); return; }
-  if (ofrecerCoima())          { eventoPolicia(mostrarResultadoEvento); return; }
-  if (ofrecerProteccionCapo()) { eventoCapo(mostrarResultadoEvento); return; }
-
-  // 4. Semana tranquila
   avisoSemanaNueva();
+}
+
+// Se llama cuando el jugador ya eligió qué hacer con el evento
+function resolverEventoSemana(texto) {
+  caminos.eventoPendiente = null;
+  guardarPartida();
+  mostrarResultadoEvento(texto);
 }
 
 function mostrarResultadoEvento(texto) {
@@ -210,6 +227,7 @@ function eventoAbogado(alTerminar) {
         accion: () => {
           caminos.delato = true;
           caminos.semanaDelacion = gameState.semanaActual;
+          caminos.semanaSicario = gameState.semanaActual + 1 + (Math.random() < 0.5 ? 1 : 0);
           gameState.estres = Math.min(100, gameState.estres + 25);
           alTerminar('Delataste al capo. Salís de la comisaría con una sensación rara en el cuerpo.');
         }
@@ -223,14 +241,17 @@ function eventoAbogado(alTerminar) {
   });
 }
 
-// El sicario viene 1-2 semanas después de delatar, sin aviso
-function chequearSicario() {
-  if (!caminos.delato || caminos.semanaDelacion === null) return false;
-  if (gameState.semanaActual - caminos.semanaDelacion < 1) return false;
-  if (caminos.finalObtenido) return false;
+// El sicario viene 1-2 semanas después de delatar, sin aviso.
+// Si la partida se termina antes, viene igual en el último balance.
+function debeVenirSicario() {
+  if (!caminos.delato || caminos.finalObtenido) return false;
+  // Partidas guardadas antes de este cambio no tienen semanaSicario
+  const semana = caminos.semanaSicario ?? (caminos.semanaDelacion !== null ? caminos.semanaDelacion + 1 : null);
+  if (semana === null) return false;
+  return gameState.semanaActual >= semana || gameState.semanaActual > gameState.totalSemanas;
+}
 
-  caminos.semanaDelacion = null;   // solo se dispara una vez
-
+function mostrarSicario() {
   // Acá la condición es BINARIA: solo la pistola salva.
   // El jugador que la compró "por las dudas" es recompensado
   // retroactivamente, sin haber sabido que este evento existía.
@@ -249,15 +270,15 @@ function chequearSicario() {
          y el barrio entero mirando por la ventana.`
       : `Un tipo que no habías visto nunca se paró en la ventanita. No pidió nada.
          Metió la mano en la campera.<br><br>
-         Buscaste algo abajo del mostrador. No había nada. Nunca compraste con qué defenderte.
+         ${armaActual === 'manos'
+           ? 'Buscaste algo abajo del mostrador. No había nada. Nunca compraste con qué defenderte.'
+           : `Buscaste el ${ARMAS[armaActual].nombre.toLowerCase()} abajo del mostrador. No alcanzó.`}
          <br><br>No llegaste a entender qué estaba pasando.`,
     opciones: [{
       titulo: 'Ver el final',
       accion: () => renderFinal(caminos.finalObtenido)
     }]
   });
-
-  return true;
 }
 
 // ==========================================================
@@ -279,9 +300,10 @@ function montoCoima() {
 }
 
 function eventoPolicia(alTerminar) {
+  // vecesPolicia sube recién cuando elegís: si recargás la página
+  // con el cartel abierto, el monto no se dispara dos veces
   const monto = montoCoima();
   const esReincidencia = caminos.vecesPolicia > 0;
-  caminos.vecesPolicia++;
 
   mostrarEventoGrande({
     etiqueta: esReincidencia ? 'Otra vez el mismo' : 'Control municipal',
@@ -305,6 +327,7 @@ function eventoPolicia(alTerminar) {
         titulo: `Pagar $${monto.toLocaleString('es-AR')}`,
         detalle: 'El local sigue abierto, pero es un golpe fuerte al fondo de la fianza.',
         accion: () => {
+          caminos.vecesPolicia++;
           if (gameState.caja < monto) {
             caminos.clausurado = 1;
             gameState.estres = Math.min(100, gameState.estres + 20);
@@ -320,6 +343,7 @@ function eventoPolicia(alTerminar) {
         titulo: 'Negarte y bancar la clausura',
         detalle: 'No le das un peso. Te clausuran una semana entera: cero ventas.',
         accion: () => {
+          caminos.vecesPolicia++;
           caminos.seNegoACoima = true;
           caminos.clausurado = 1;
           gameState.estres = Math.min(100, gameState.estres + 14);
@@ -432,8 +456,9 @@ function evaluarFinal() {
     return 'quiebra_tecnica';
   }
 
-  // 5. Llegó a la meta
-  if (gameState.caja >= gameState.metaFianza) {
+  // 5. Llegó a la meta (si delataste, tu hermano ya salió por otro lado:
+  //    la historia la cierra el sicario, no la fianza)
+  if (!caminos.delato && gameState.caja >= gameState.metaFianza) {
     let final = 'meta_solo';
     if (caminos.vecesPolicia > 0) {
       final = caminos.seNegoACoima ? 'policia_intachable' : 'policia_limpio';
@@ -453,6 +478,11 @@ function evaluarFinal() {
 }
 function renderFinal(tipo) {
   const f = FINALES[tipo];
+
+  // La partida terminó: se borra el guardado para que "Jugar de
+  // nuevo" no te ofrezca continuar una partida que ya tuvo final
+  borrarPartidaGuardada();
+  detenerMusicaAmbiente();
 
   mostrarEventoGrande({
     etiqueta: 'Fin de la partida',

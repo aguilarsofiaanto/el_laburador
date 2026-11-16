@@ -1,43 +1,37 @@
 // ==========================================================
 // GUARDADO Y CARGA DE PARTIDA
-// El progreso completo vive en Firestore. localStorage se usa
-// solo para guardar el ID único del jugador en este navegador,
-// que es la clave del documento en la nube.
+// El progreso completo vive en Firestore, en partidas/{uid}.
+// El uid sale del login anónimo de Firebase (ver firebase.js):
+// cada navegador tiene el suyo y las reglas de Firestore solo
+// le dejan tocar su propio documento.
 // ==========================================================
 
-const CLAVE_ID_JUGADOR = 'elLaburador_idJugador';
 const COLECCION_PARTIDAS = 'partidas';
-
-// ==========================================================
-// ID ÚNICO DEL JUGADOR
-// Se genera una sola vez por navegador y se reutiliza siempre.
-// ==========================================================
-function obtenerIdJugador() {
-  let id = localStorage.getItem(CLAVE_ID_JUGADOR);
-
-  if (!id) {
-    id = 'jugador_' + Date.now().toString(36) + '_' +
-         Math.random().toString(36).substring(2, 10);
-    localStorage.setItem(CLAVE_ID_JUGADOR, id);
-  }
-
-  return id;
-}
+const VERSION_GUARDADO = 2;
 
 // ==========================================================
 // ESPERAR A QUE FIREBASE ESTÉ LISTO
-// El script de Firebase es un módulo que carga async, puede
-// terminar después que este archivo. Esta promesa resuelve
-// apenas está disponible (o al toque si ya lo estaba).
+// firebase.js es un módulo y carga async: puede terminar después
+// que este archivo. Si en 6 segundos no respondió (sin internet,
+// por ejemplo), se sigue sin guardado para no trabar el juego.
+// Devuelve true si se puede guardar.
 // ==========================================================
 function firebaseListo() {
   return new Promise((resolve) => {
-    if (window.firebaseDB) {
-      resolve();
-    } else {
-      window.addEventListener('firebaseListo', () => resolve(), { once: true });
+    if (window.firebaseEstado) {
+      resolve(window.firebaseEstado === 'ok');
+      return;
     }
+    const plazo = setTimeout(() => resolve(false), 6000);
+    window.addEventListener('firebaseListo', () => {
+      clearTimeout(plazo);
+      resolve(window.firebaseEstado === 'ok');
+    }, { once: true });
   });
+}
+
+function referenciaPartida() {
+  return window.firebaseDoc(window.firebaseDB, COLECCION_PARTIDAS, window.firebaseUid);
 }
 
 // ==========================================================
@@ -45,7 +39,7 @@ function firebaseListo() {
 // ==========================================================
 async function guardarPartida() {
   const datos = {
-    version: 1,
+    version: VERSION_GUARDADO,
     fecha: new Date().toISOString(),
 
     gameState: gameState,
@@ -54,20 +48,24 @@ async function guardarPartida() {
     fiado: fiado,
     economia: economia,
     armaActual: armaActual,
-    metasAlcanzadas: metasAlcanzadas
+    metasAlcanzadas: metasAlcanzadas,
+
+    // Desde la versión 2 también se guarda esto, que antes se perdía
+    hermano: hermano,
+    extorsion: extorsion,
+    efectosDia: efectosDia,
+    climaHoy: climaHoy,
+    visitasClientes: Object.fromEntries(CLIENTES.map(c => [c.id, c.visitas]))
   };
 
   try {
-    await firebaseListo();
+    if (!(await firebaseListo())) return false;
 
-    const id = obtenerIdJugador();
-    const ref = window.firebaseDoc(window.firebaseDB, COLECCION_PARTIDAS, id);
-
-    // Firestore no acepta objetos anidados con funciones ni undefined,
-    // por eso se pasa por JSON (limpia todo lo que no sea dato puro).
+    // Firestore no acepta funciones ni undefined: pasar por JSON
+    // deja solo datos puros.
     const datosLimpios = JSON.parse(JSON.stringify(datos));
 
-    await window.firebaseSetDoc(ref, datosLimpios);
+    await window.firebaseSetDoc(referenciaPartida(), datosLimpios);
     return true;
   } catch (e) {
     console.error('No se pudo guardar la partida:', e);
@@ -87,23 +85,30 @@ async function guardarPartidaManual() {
     alert('Partida guardada.');
   } else {
     sonidoError();
-    alert('No se pudo guardar la partida. Revisá tu conexión a internet.');
+    alert(window.firebaseEstado === 'desactivado'
+      ? 'El guardado no está configurado todavía (falta Firebase).'
+      : 'No se pudo guardar la partida. Revisá tu conexión a internet.');
   }
 }
 
 // ==========================================================
 // ¿HAY PARTIDA GUARDADA?
-// Chequea si existe un documento en Firestore para este jugador.
 // ==========================================================
-async function haySartidaGuardada() {
+async function leerPartidaGuardada() {
+  if (!(await firebaseListo())) return null;
+
+  const snap = await window.firebaseGetDoc(referenciaPartida());
+  if (!snap.exists()) return null;
+
+  const datos = snap.data();
+  // "vacio" lo dejaba la versión vieja al borrar: cuenta como nada
+  if (datos.vacio || !datos.gameState) return null;
+  return datos;
+}
+
+async function hayPartidaGuardada() {
   try {
-    await firebaseListo();
-
-    const id = obtenerIdJugador();
-    const ref = window.firebaseDoc(window.firebaseDB, COLECCION_PARTIDAS, id);
-    const snap = await window.firebaseGetDoc(ref);
-
-    return snap.exists();
+    return (await leerPartidaGuardada()) !== null;
   } catch (e) {
     console.error('No se pudo chequear si hay partida guardada:', e);
     return false;
@@ -115,15 +120,8 @@ async function haySartidaGuardada() {
 // ==========================================================
 async function cargarPartida() {
   try {
-    await firebaseListo();
-
-    const id = obtenerIdJugador();
-    const ref = window.firebaseDoc(window.firebaseDB, COLECCION_PARTIDAS, id);
-    const snap = await window.firebaseGetDoc(ref);
-
-    if (!snap.exists()) return false;
-
-    const datos = snap.data();
+    const datos = await leerPartidaGuardada();
+    if (!datos) return false;
 
     // Se pisan los valores dentro de los objetos existentes,
     // en vez de reasignar, porque son const y otros archivos
@@ -137,6 +135,21 @@ async function cargarPartida() {
     armaActual = datos.armaActual || 'manos';
     metasAlcanzadas = datos.metasAlcanzadas || 0;
 
+    if (datos.hermano)    Object.assign(hermano, datos.hermano);
+    if (datos.extorsion)  Object.assign(extorsion, datos.extorsion);
+    if (datos.efectosDia) Object.assign(efectosDia, datos.efectosDia);
+    if (datos.climaHoy)   Object.assign(climaHoy, datos.climaHoy);
+    if (datos.visitasClientes) {
+      for (const c of CLIENTES) c.visitas = datos.visitasClientes[c.id] || 0;
+    }
+
+    // Partidas de la versión 1: no tenían estos campos
+    if (gameState.faltantesHoy === undefined) gameState.faltantesHoy = {};
+    if (gameState.clientesHoy === undefined) gameState.clientesHoy = 0;
+    if (gameState.clientesEsperadosHoy === undefined) gameState.clientesEsperadosHoy = null;
+    if (gameState.diaIniciado === undefined) gameState.diaIniciado = true;
+    if (gameState.mensajesTiaHoy === undefined) gameState.mensajesTiaHoy = 0;
+
     return true;
   } catch (e) {
     console.error('No se pudo cargar la partida:', e);
@@ -146,18 +159,12 @@ async function cargarPartida() {
 
 // ==========================================================
 // BORRAR PARTIDA GUARDADA
-// (útil para "Nueva partida" si ya hay una en curso)
+// (al empezar una nueva o cuando la partida llega a un final)
 // ==========================================================
 async function borrarPartidaGuardada() {
   try {
-    await firebaseListo();
-
-    const id = obtenerIdJugador();
-    const ref = window.firebaseDoc(window.firebaseDB, COLECCION_PARTIDAS, id);
-
-    // setDoc con un objeto vacío no borra el documento de verdad,
-    // así que se marca como "vacío" con una bandera propia.
-    await window.firebaseSetDoc(ref, { vacio: true });
+    if (!(await firebaseListo())) return false;
+    await window.firebaseDeleteDoc(referenciaPartida());
     return true;
   } catch (e) {
     console.error('No se pudo borrar la partida guardada:', e);
@@ -173,8 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btn = document.getElementById('btnContinuar');
   if (!btn) return;
 
-  const hay = await haySartidaGuardada();
-  if (hay) {
+  if (await hayPartidaGuardada()) {
     btn.style.display = 'block';
   }
 });

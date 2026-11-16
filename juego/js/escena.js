@@ -1340,13 +1340,18 @@ function aplicarIluminacion() {
     pointLight(150, 128, 96, 0, 120, 200);
   }
  
-  // --- Faroles de la calle (se ven siempre) ---
-  pointLight(220, 168, 102, -700, -100, 540);
-  pointLight(220, 168, 102, 0, -100, 540);
-  pointLight(220, 168, 102, 700, -100, 540);
- 
+  // OJO: p5.js acepta como máximo 5 luces de cada tipo por frame
+  // (pointLight, spotLight, directionalLight); las que sobran se
+  // ignoran sin avisar. Las 5 pointLight son las de adentro, así
+  // que los faroles van como spotLight y el cielo como direccional.
+
+  // --- Faroles de la calle (se ven siempre): conos hacia abajo ---
+  for (const x of [-700, 0, 700]) {
+    spotLight(255, 196, 120, x, -100, 540, 0, 1, 0, 65, 12);
+  }
+
   // --- Luz fría del cielo entrando por la ventana ---
-  pointLight(48, 58, 92, 0, -40, 420);
+  directionalLight(48, 58, 92, 0, 0.2, -1);
 }
  
  

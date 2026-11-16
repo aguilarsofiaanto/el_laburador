@@ -12,6 +12,9 @@
 //   ventas.js    → clientes y cálculo de vuelto
 //   eventos.js   → eventos diarios y ciclo de días
 //   caminos.js   → los tres caminos y los finales
+//   chatbot.js   → la Tía Marta (consultas con Gemini)
+//   guardado.js  → guardar y cargar en Firestore
+//   firebase.js  → configuración de Firebase (módulo)
 // ==========================================================
 
 // p5.js ejecuta preload() ANTES de setup(), para cargar assets
@@ -59,6 +62,7 @@ function draw() {
   actualizarPromptInteraccion();
   actualizarPromptPuerta();
   actualizarControlesTactiles();
+  actualizarBotonCelular();
 }
 
 // Se ejecuta cuando cambia el tamaño de la ventana

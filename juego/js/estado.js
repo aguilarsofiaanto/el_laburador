@@ -13,30 +13,43 @@ const gameState = {
   diasPorSemana: 7,
  
   // --- Economía ---
+  // Calibrado con una simulación de miles de partidas: un jugador
+  // "perfecto" (nunca erra un vuelto, nunca se queda sin stock) con
+  // precios entre 0% y +35% del mercado llega en 3-4 semanas; con
+  // precios a -20% o a +60% casi nunca llega. Un jugador real tarda
+  // más. Para cambiar la dificultad, tocá estos números y DEMANDA.
   metaFianza: 50000,
   caja: 2200,
-  alquilerSemanal: 3500,
-  luzSemanal: 1200,
+  alquilerSemanal: 9000,
+  luzSemanal: 2500,
   deudaAcumulada: 0,
- 
+
   // --- Ventas ---
   ventasDelDia: 0,
   ventasDeLaSemana: 0,
-  clientesAtendidosHoy: 0,
- 
+  clientesAtendidosHoy: 0,   // los que compraron algo
+  clientesHoy: 0,            // los que vinieron (compren o no)
+  clientesEsperadosHoy: null, // se fija con el primer cliente del día
+  faltantesHoy: {},          // { idProducto: veces que te lo pidieron sin stock }
+  diaIniciado: false,        // ya se mostró el evento del día
+  mensajesTiaHoy: 0,         // consultas al chatbot en el día
+
   // --- Estado del jugador ---
   estres: 0,
- 
+
   // --- Catálogo de productos ---
+  // El costo ronda el 65% del precio de mercado: el margen de un
+  // kiosco real es chico, por eso importa tanto el precio.
+  // demandaBase = qué tanto lo pide la gente comparado con el resto.
   productos: [
-    { id: 'alfajor',   nombre: 'Alfajor',      costo: 350,  precioJusto: 700,  precio: 700,  stock: 2, demandaBase: 9  },
-    { id: 'chocolate', nombre: 'Chocolate',    costo: 500,  precioJusto: 950,  precio: 950,  stock: 1, demandaBase: 7  },
-    { id: 'chicles',   nombre: 'Chicles',      costo: 150,  precioJusto: 350,  precio: 350,  stock: 3, demandaBase: 12 },
-    { id: 'gaseosa',   nombre: 'Gaseosa',      costo: 600,  precioJusto: 1200, precio: 1200, stock: 1, demandaBase: 6  },
-    { id: 'agua',      nombre: 'Agua',         costo: 400,  precioJusto: 800,  precio: 800,  stock: 2, demandaBase: 8  },
-    { id: 'jugo',      nombre: 'Jugo',         costo: 450,  precioJusto: 900,  precio: 900,  stock: 1, demandaBase: 7  },
-    { id: 'papas',     nombre: 'Papas fritas', costo: 700,  precioJusto: 1400, precio: 1400, stock: 0, demandaBase: 5  },
-    { id: 'palitos',   nombre: 'Palitos',      costo: 550,  precioJusto: 1100, precio: 1100, stock: 1, demandaBase: 6  }
+    { id: 'alfajor',   nombre: 'Alfajor',      costo: 460,  precioJusto: 700,  precio: 700,  stock: 2, demandaBase: 9  },
+    { id: 'chocolate', nombre: 'Chocolate',    costo: 620,  precioJusto: 950,  precio: 950,  stock: 1, demandaBase: 7  },
+    { id: 'chicles',   nombre: 'Chicles',      costo: 230,  precioJusto: 350,  precio: 350,  stock: 3, demandaBase: 12 },
+    { id: 'gaseosa',   nombre: 'Gaseosa',      costo: 780,  precioJusto: 1200, precio: 1200, stock: 1, demandaBase: 6  },
+    { id: 'agua',      nombre: 'Agua',         costo: 520,  precioJusto: 800,  precio: 800,  stock: 2, demandaBase: 8  },
+    { id: 'jugo',      nombre: 'Jugo',         costo: 590,  precioJusto: 900,  precio: 900,  stock: 1, demandaBase: 7  },
+    { id: 'papas',     nombre: 'Papas fritas', costo: 910,  precioJusto: 1400, precio: 1400, stock: 0, demandaBase: 5  },
+    { id: 'palitos',   nombre: 'Palitos',      costo: 720,  precioJusto: 1100, precio: 1100, stock: 1, demandaBase: 6  }
   ]
 };
  
@@ -59,13 +72,18 @@ const caminos = {
   // Camino 2: el abogado
   delato: false,
   semanaDelacion: null,
+  semanaSicario: null,   // cuándo viene a cobrársela (1 o 2 semanas después)
   abogadoOfrecido: false,
- 
+
   // Camino 3: la policía
   vecesPolicia: 0,
   seNegoACoima: false,
   clausurado: 0,
- 
+
+  // Qué evento espera después del balance semanal (se guarda con
+  // la partida para que recargar la página no lo saltee)
+  eventoPendiente: null,   // 'final' | 'sicario' | 'abogado' | 'policia' | 'capo' | null
+
   // Cierre
   partidaTerminada: false,
   finalObtenido: null
@@ -185,20 +203,100 @@ let juegoIniciado = false;
  
  
 // ==========================================================
-// LÍMITE DE CLIENTES POR DÍA
-// El día se acaba solo: no podés atender infinito.
+// DEMANDA: CUÁNTA GENTE VIENE Y QUÉ PIDE
+// El día se acaba solo: no podés atender infinito. Cuánta gente
+// viene depende de tus precios: barato atrae, caro espanta.
 // ==========================================================
-const CLIENTES_POR_DIA = 15;
- 
+const DEMANDA = {
+  clientesBase: 5,        // clientes por día con precios de mercado
+  clientesMin: 2,
+  clientesMax: 9,
+  elasticidad: 1.2,       // cuánto cambia la cantidad de gente según el precio
+  toleranciaPrecio: 0.15, // hasta 15% arriba del mercado nadie se va por el precio
+  fugaPorSobreprecio: 1.3 // a partir de ahí, qué tan rápido sube la chance de que se vaya
+};
+
+// Cuánto más caro (positivo) o más barato (negativo) que el
+// mercado está un producto. 0.2 = 20% más caro.
+function sobreprecioDe(p) {
+  return (p.precio - p.precioJusto) / p.precioJusto;
+}
+
+// Promedio de sobreprecio de lo que tenés en el estante,
+// pesado por lo que pide la gente.
+function indicePrecios() {
+  const enEstante = gameState.productos.filter(p => p.stock > 0);
+  const lista = enEstante.length > 0 ? enEstante : gameState.productos;
+  const pesoTotal = lista.reduce((acc, p) => acc + p.demandaBase, 0);
+  return lista.reduce((acc, p) => acc + sobreprecioDe(p) * p.demandaBase, 0) / pesoTotal;
+}
+
+// Cuántos clientes vienen en promedio con los precios de ahora
+function clientesPromedioDelDia() {
+  const factorPrecio = Math.min(1.5, Math.max(0.4, 1 - DEMANDA.elasticidad * indicePrecios()));
+  let n = DEMANDA.clientesBase * factorPrecio;
+
+  if (climaHoy.tipo === 'festejo') n *= climaHoy.multiplicador;
+  if (mejoras.carteLuminoso) n += 2;
+
+  return n;
+}
+
+function limitarClientes(n) {
+  return Math.min(DEMANDA.clientesMax, Math.max(DEMANDA.clientesMin, n));
+}
+
+// El número real del día: se redondea al azar (4,4 → 4 o 5, más
+// seguido 4) para que subir un poco el precio no te saque siempre
+// un cliente entero.
+function calcularClientesDelDia() {
+  return limitarClientes(Math.floor(clientesPromedioDelDia() + Math.random()));
+}
+
+// Lo que se ve en el HUD: si el día ya arrancó, el número fijo;
+// si no, la estimación con los precios de ahora mismo.
+function clientesEsperadosHoy() {
+  return gameState.clientesEsperadosHoy !== null
+    ? gameState.clientesEsperadosHoy
+    : limitarClientes(Math.round(clientesPromedioDelDia()));
+}
+
+// Qué tanto quiere la gente cada producto hoy
+function pesoDemanda(p) {
+  let peso = p.demandaBase * Math.max(0.2, 1 - 1.5 * sobreprecioDe(p));
+  if (climaHoy.productos.includes(p.id)) peso *= climaHoy.multiplicador;
+  if (p.id === efectosDia.productoViral) peso *= 4;
+  return peso;
+}
+
+// Probabilidad de que el cliente vea los precios y se vaya
+function chanceDeIrsePorPrecio(sobrePrecio) {
+  const exceso = sobrePrecio - DEMANDA.toleranciaPrecio;
+  return Math.min(0.9, Math.max(0, exceso * DEMANDA.fugaPorSobreprecio));
+}
+
+function reiniciarContadoresDelDia() {
+  gameState.ventasDelDia = 0;
+  gameState.clientesAtendidosHoy = 0;
+  gameState.clientesHoy = 0;
+  gameState.clientesEsperadosHoy = null;
+  gameState.faltantesHoy = {};
+  gameState.diaIniciado = false;
+  gameState.mensajesTiaHoy = 0;
+  // Charla nueva con el chatbot cada día (ver chatbot.js / firebase.js)
+  if (typeof window.tiaNuevaCharla === 'function') window.tiaNuevaCharla();
+}
+
 // ==========================================================
 // CLIMA Y EVENTOS QUE AFECTAN LA DEMANDA
 // ==========================================================
 const climaHoy = {
   tipo: null,        // 'frio' | 'calor' | 'festejo' | null
-  productos: [],     // qué productos se venden más
-  multiplicador: 1   // cuánto más se llevan
+  productos: [],     // qué productos se piden más (vacío = ninguno en especial)
+  multiplicador: 1   // frío/calor: cuánto más se piden esos productos
+                     // festejo: cuánta más gente viene
 };
- 
+
 function limpiarClima() {
   climaHoy.tipo = null;
   climaHoy.productos = [];

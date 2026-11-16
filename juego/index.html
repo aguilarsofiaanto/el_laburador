@@ -137,6 +137,12 @@
               </li>
 
               <li>
+                <strong>Gestión de stock:</strong>
+                si te piden algo que no tenés, esa venta se pierde.
+                El clima y lo que se pone de moda cambian qué se pide.
+              </li>
+
+              <li>
                 <strong>Capital de trabajo:</strong>
                 la plata que gastás en reponer stock es plata que
                 no va al objetivo.
@@ -168,6 +174,9 @@
 
               <li>
                 Durante el día atendés clientes en la ventanita.
+                Cada día viene una cantidad limitada de gente
+                (la ves arriba a la izquierda): con precios bajos
+                viene más, con precios altos viene menos.
               </li>
 
               <li>
@@ -299,6 +308,11 @@
         >
           Sem 1 · Lunes
         </div>
+
+        <div
+          class="hud-sub"
+          id="hudClientes"
+        ></div>
 
       </div>
 
@@ -510,6 +524,37 @@
 
 
 
+    <!-- ===== Botón de sonido ===== -->
+    <button id="btnSonido" class="btnFlotante" onclick="toggleSonido()"
+            title="Silenciar" aria-label="Silenciar">🔊</button>
+
+    <!-- ===== Botón del celular: chatbot de consultas ===== -->
+    <button id="btnCelular" class="btnFlotante" onclick="abrirChatTia()"
+            title="Escribirle a la Tía Marta" aria-label="Escribirle a la Tía Marta">📱</button>
+
+    <!-- ===== Chat con la Tía Marta (chatbot de consultas) ===== -->
+    <div id="chatTia" class="oculto">
+      <div class="mh-celular ct-celular">
+        <div class="mh-barra">
+          <span class="mh-contacto">Tía Marta · contadora</span>
+          <span class="ct-acciones">
+            <button class="ct-cerrar" id="ctVoz" type="button" onclick="alternarVozTia()"
+                    title="Voz de la tía" aria-label="Voz de la tía">🔊</button>
+            <button class="ct-cerrar" type="button" onclick="cerrarChatTia()" aria-label="Cerrar">✕</button>
+          </span>
+        </div>
+        <div class="mh-chat ct-chat" id="ctChat"></div>
+        <div class="ct-sugerencias" id="ctSugerencias"></div>
+        <form class="ct-form" onsubmit="enviarATia(event)">
+          <input id="ctInput" type="text" maxlength="300" autocomplete="off"
+                 placeholder="Escribile a la tía..." aria-label="Mensaje para la Tía Marta">
+          <button class="btn" id="ctEnviar" type="submit">Enviar</button>
+        </form>
+        <div class="ct-pie" id="ctPie"></div>
+      </div>
+    </div>
+
+
     <!-- =========================================================
          BOTÓN DEL PANEL DE GESTIÓN
     ========================================================== -->
@@ -616,37 +661,9 @@
 
   </div>
 
-  <!-- Firebase -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-  import {
-    getFirestore, doc, setDoc, getDoc
-  } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBDQ3afbcbc_DU-tQXVLWHyJcA6IIUAGJM",
-    authDomain: "el-laburador.firebaseapp.com",
-    projectId: "el-laburador",
-    storageBucket: "el-laburador.firebasestorage.app",
-    messagingSenderId: "714750254875",
-    appId: "1:714750254875:web:6f55497ff0fce97d20fdbe"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  // Puente: como los demás scripts del juego NO son módulos,
-  // se guardan estas funciones en window para poder usarlas
-  // desde guardado.js como si fueran globales normales.
-  window.firebaseDB = db;
-  window.firebaseDoc = doc;
-  window.firebaseSetDoc = setDoc;
-  window.firebaseGetDoc = getDoc;
-
-  // Avisa que Firebase ya está listo (los scripts módulo cargan
-  // async, puede que terminen después que guardado.js)
-  window.dispatchEvent(new Event('firebaseListo'));
-</script>
+  <!-- Firebase (guardado + chatbot). Es un módulo: corre después
+       de los scripts del juego. La configuración se pega adentro. -->
+  <script type="module" src="js/firebase.js"></script>
 
   <!-- =========================================================
        JAVASCRIPT DEL JUEGO
@@ -662,6 +679,8 @@
 <script src="js/ventas.js"></script>
 <script src="js/eventos.js"></script>
 <script src="js/caminos.js"></script>
+<script src="js/voz.js"></script>
+<script src="js/chatbot.js"></script>
 <!-- juego.js va último: arranca todo cuando el resto ya está definido -->
 <script src="js/juego.js"></script>
 </body>
