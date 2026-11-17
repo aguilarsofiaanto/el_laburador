@@ -41,6 +41,6 @@ En celular, usá el joystick y los avisos táctiles que aparecen en pantalla.
 
 - [`index.html`](index.html) es la presentación del proyecto y la entrada al juego.
 - [`juego/`](juego/) contiene el kiosco 3D, las mecánicas y los recursos. Está hecho con p5.js y JavaScript.
-- Firebase Authentication y Firestore permiten guardar y retomar la partida con un usuario anónimo. La Tía Marta usa Firebase AI Logic con Gemini.
+- Firebase Authentication y Firestore permiten guardar y retomar la partida como invitado o con una cuenta de correo y contraseña. Al registrarte conservás la partida de invitado y podés retomarla en otro dispositivo. La Tía Marta usa Firebase AI Logic con Gemini.
 
 Para más detalles, consultá el [manual del juego](juego/README.md), la [configuración de Firebase](juego/FIREBASE.md) y la [guía del chatbot](juego/CHATBOT.md).

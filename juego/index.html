@@ -277,25 +277,42 @@
         </div>
 
 
-        <details class="pi-cuenta">
-          <summary>Cuenta de jugador</summary>
-          <p id="cuentaEstado" role="status">Conectando con Firebase…</p>
-          <form id="cuentaForm">
-            <fieldset id="cuentaCampos" disabled>
-              <label>Correo <input name="correo" type="email" autocomplete="email" required></label>
-              <label>Contraseña <input name="clave" type="password" autocomplete="current-password" required></label>
-              <button class="btn" type="submit" value="login">Iniciar sesión</button>
-              <button class="btn" type="submit" value="registro">Registrarse</button>
-            </fieldset>
-          </form>
-          <button class="btn" id="cuentaSalir" type="button" hidden>Cerrar sesión</button>
-        </details>
+        <section id="cuentaPanel" aria-label="Tu cuenta">
+          <p id="cuentaEstado" role="status">Conectando con tu cuenta…</p>
+          <details id="cuentaAcceso">
+            <summary>Iniciar sesión o crear cuenta</summary>
+            <p>Creá una cuenta para retomar tu partida desde otro dispositivo.</p>
+            <div class="cuenta-acciones">
+              <button type="button" data-modo-cuenta="ingresar">Ingresar</button>
+              <button type="button" data-modo-cuenta="registrar">Crear cuenta</button>
+              <button type="button" data-modo-cuenta="recuperar">Olvidé mi contraseña</button>
+            </div>
+            <form id="cuentaForm">
+              <label>Correo electrónico
+                <input id="cuentaCorreo" type="email" autocomplete="email" required maxlength="254">
+              </label>
+              <label id="cuentaClaveGrupo">Contraseña
+                <input id="cuentaClave" type="password" autocomplete="current-password" required>
+              </label>
+              <label id="cuentaConfirmarGrupo" hidden>Repetí la contraseña
+                <input id="cuentaConfirmar" type="password" autocomplete="new-password">
+              </label>
+              <button id="cuentaEnviar" type="submit">Iniciar sesión</button>
+            </form>
+            <p>Podés seguir como invitado. En ese caso, tu partida depende de la sesión de este navegador.</p>
+          </details>
+          <div id="cuentaSesion" class="cuenta-acciones" hidden>
+            <button id="cuentaVerificar" type="button">Reenviar verificación</button>
+            <button id="cuentaSalir" type="button">Cerrar sesión</button>
+          </div>
+          <p id="cuentaMensaje" role="status" aria-live="polite"></p>
+        </section>
 
         <button class="pi-jugar" id="btnContinuar" onclick="continuarPartida()" style="display:none;">
         Continuar partida
         </button>
 
-        <button class="pi-jugar" onclick="nuevaPartidaConfirmar()">
+        <button class="pi-jugar" id="btnNuevaPartida" onclick="nuevaPartidaConfirmar()">
         Abrir el kiosco
         </button>
 
@@ -686,6 +703,7 @@
 <script src="js/estado.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/guardado.js"></script>
+<script src="js/cuentas.js"></script>
 <script src="js/camara.js"></script>
 <script src="js/escena.js"></script>
 <script src="js/interfaz.js"></script>

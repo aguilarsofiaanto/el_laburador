@@ -134,3 +134,57 @@ firebase deploy --only firestore:rules
 ```
 
 [`firebase.json`](firebase.json) ya apunta a `firestore.rules`.
+
+
+## Cuentas con correo y contraseña
+
+El juego permite continuar como invitado o registrarse desde la pantalla de
+inicio. Al crear una cuenta se vincula el usuario anónimo existente: conserva
+su `uid` y su documento `partidas/{uid}`. Iniciar sesión en una cuenta ya
+existente abre la partida de esa cuenta; no fusiona la partida del invitado.
+
+### Configuración en la consola
+
+1. Authentication → Método de acceso: habilitar **Correo electrónico/contraseña**
+   y mantener **Anónimo** habilitado. No hace falta activar el acceso por enlace.
+2. Authentication → Configuración → Dominios autorizados: incluir
+   `aguilarsofiaanto.github.io` y `localhost` (o el dominio usado para pruebas).
+3. Firestore → Reglas: publicar `firestore.rules`. Las reglas actuales ya sirven
+   para cuentas registradas; no hace falta agregar colecciones ni abrir permisos.
+4. Las plantillas predeterminadas sirven para recuperación y verificación.
+   No hace falta personalizarlas para habilitar las cuentas.
+
+La sesión persiste en el navegador. El usuario puede reenviar la verificación
+sin que eso bloquee el guardado. Las contraseñas las administra Firebase Auth;
+no se almacenan en Firestore ni en el código del juego.
+
+### Uso y comprobación manual
+
+- Como invitado, jugar y guardar desde gestión o al cerrar el día. Recargar para
+  volver al inicio y crear una cuenta. Debe seguir apareciendo **Continuar partida**.
+- Cerrar sesión: la cuenta conserva su guardado y comienza una sesión de invitado
+  nueva, sin mostrar la partida de la cuenta anterior.
+- Ingresar con la cuenta anterior y continuar: deben volver su caja, stock y progreso.
+- Probar el acceso desde otro navegador o dispositivo con la misma cuenta.
+- Probar una contraseña incorrecta y el enlace **Olvidé mi contraseña**.
+- Si otra pestaña cambia la cuenta mientras se está jugando, el juego se recarga
+  para impedir que el progreso en memoria se guarde en otra cuenta. Se pierde lo
+  que todavía no se haya guardado.
+
+Para cambiar de cuenta durante una partida, guardar primero desde gestión y
+recargar para volver a la pantalla de inicio. No cambiar de cuenta en medio de
+una venta. El guardado sigue siendo manual y en los puntos automáticos ya
+existentes (cierres de día, semana y eventos).
+
+### Pruebas sin acceder al proyecto real
+
+Desde la raíz del repositorio, con Node.js 18 o superior:
+
+```sh
+node --test juego/tests/cuentas.test.cjs
+```
+
+Estas pruebas usan un sustituto de Firebase y verifican la vinculación de cuentas,
+la sesión existente y el aislamiento del guardado. No crean usuarios ni documentos
+en el proyecto real. La configuración activa, la entrega de correos y el acceso
+entre dispositivos se comprueban con la lista manual anterior.
