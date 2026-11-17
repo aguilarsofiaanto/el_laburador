@@ -648,11 +648,11 @@ function dibujarHeladera(x, z) {
 // se actualiza solo cuando cambia gameState.
 function dibujarEstantePrincipal() {
   const productos = gameState.productos;
-  const espacio = 120;
+  const espacio = ESTANTE_PRINCIPAL.espacio;
   const inicioX = -((productos.length - 1) * espacio) / 2;
  
   push();
-  translate(0, 0, -260);
+  translate(ESTANTE_PRINCIPAL.x, 0, ESTANTE_PRINCIPAL.z);
  
   // Panel de fondo, con veta de madera: rompe el vacío detrás
   // de los productos y da sensación de góndola real.
@@ -1257,13 +1257,8 @@ function dibujarEscena() {
   dibujarPiso();
   dibujarParedes();
   dibujarFachadaConVentana();
-  dibujarEstanteLateral(-780, -150);
-  dibujarEstanteLateral(-780, 150);
-  dibujarEstanteLateral(780, -350);
-  dibujarHeladera(480, -560);
-  dibujarHeladera(240, -560);
-  dibujarHeladera(-240, -560);
-  dibujarHeladera(-480, -560);
+  for (const { x, z } of ESTANTES_LATERALES) dibujarEstanteLateral(x, z);
+  for (const { x, z } of HELADERAS) dibujarHeladera(x, z);
   dibujarEstantePrincipal();
   dibujarMostrador();
   dibujarPuertaSalida();

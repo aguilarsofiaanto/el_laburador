@@ -17,6 +17,41 @@ let camPitch  = 0;   // giro vertical
 
 const VEL_MOV    = 5;
 const VEL_CORRER = 11;
+const RADIO_JUGADOR = 18;
+
+const ESTANTES_LATERALES = [
+  { x: -780, z: -150 }, { x: -780, z: 150 }, { x: 780, z: -350 }
+];
+const HELADERAS = [480, 240, -240, -480].map(x => ({ x, z: -560 }));
+const ESTANTE_PRINCIPAL = { x: 0, z: -260, espacio: 120, fondo: 90 };
+const OBSTACULOS_KIOSCO = [
+  { x: 0, z: 260, ancho: 420, fondo: 47 }, // Mostrador
+  ...ESTANTES_LATERALES.map(p => ({ ...p, ancho: 136, fondo: 266 })),
+  ...HELADERAS.map(p => ({ ...p, ancho: 90, fondo: 86 }))
+];
+
+function chocaConMueble(x, z) {
+  const principal = {
+    ...ESTANTE_PRINCIPAL,
+    ancho: ESTANTE_PRINCIPAL.espacio * gameState.productos.length + 30
+  };
+  return [...OBSTACULOS_KIOSCO, principal].some(mueble => {
+    const dx = Math.max(0, Math.abs(x - mueble.x) - mueble.ancho / 2);
+    const dz = Math.max(0, Math.abs(z - mueble.z) - mueble.fondo / 2);
+    return dx * dx + dz * dz < RADIO_JUGADOR * RADIO_JUGADOR;
+  });
+}
+
+function moverJugador(dx, dz) {
+  const xAnterior = jugX;
+  const zAnterior = jugZ;
+  const x = constrain(jugX + dx, -850, 850);
+  const z = constrain(jugZ + dz, -600, 300);
+  // Resolver cada eje por separado permite deslizarse junto al mueble.
+  if (!chocaConMueble(x, jugZ)) jugX = x;
+  if (!chocaConMueble(jugX, z)) jugZ = z;
+  return jugX !== xAnterior || jugZ !== zAnterior;
+}
 
 // ---- Lee el teclado y mueve al jugador ----
 // ¿El jugador está escribiendo en un campo (vuelto, chat)? Ahí las
@@ -71,13 +106,12 @@ function actualizarMovimientoJugador() {
   const indicador = document.getElementById('indicadorCorrer');
   if (indicador) indicador.classList.toggle('oculto', !corriendo);
 
-  const seMueve = (mx !== 0 || mz !== 0);
+  let seMueve = false;
 
-  if (seMueve) {
+  if (mx !== 0 || mz !== 0) {
     // Se normaliza para que la diagonal no sea más rápida
     const mag = Math.hypot(mx, mz);
-    jugX = constrain(jugX + (mx / mag) * velocidad, -850, 850);
-    jugZ = constrain(jugZ + (mz / mag) * velocidad, -600, 300);
+    seMueve = moverJugador((mx / mag) * velocidad, (mz / mag) * velocidad);
   }
 
   // Sonido de pasos del jugador (nunca usa "importante": eso es para NPCs)
