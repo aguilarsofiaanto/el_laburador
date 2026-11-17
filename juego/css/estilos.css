@@ -2176,3 +2176,28 @@ body.tactil #canvasWrapper::after {
   .compraRow { padding: 12px; }
   .precioRow { padding: 12px; }
 }
+.pi-cuenta {
+  margin: 1rem auto;
+  width: min(100%, 30rem);
+}
+
+.pi-cuenta summary { cursor: pointer; }
+
+.pi-cuenta fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.pi-cuenta label { flex: 1 1 12rem; }
+
+.pi-cuenta input {
+  display: block;
+  width: 100%;
+  padding: .5rem;
+  box-sizing: border-box;
+}

@@ -14,7 +14,8 @@ import {
   getFirestore, doc, setDoc, getDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
-  getAuth, signInAnonymously, onAuthStateChanged
+  getAuth, signInAnonymously, signInWithEmailAndPassword, signOut,
+  EmailAuthProvider, linkWithCredential
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   initializeAppCheck, ReCaptchaEnterpriseProvider
@@ -74,7 +75,60 @@ function avisarListo(estado) {
   if (yaAvisado) return;
   yaAvisado = true;
   window.firebaseEstado = estado;
+  if (estado !== 'ok') {
+    document.getElementById('cuentaEstado').textContent = 'La conexión con Firebase no está disponible.';
+  }
   window.dispatchEvent(new Event('firebaseListo'));
+}
+
+function prepararCuenta(auth, usuario) {
+  const formulario = document.getElementById('cuentaForm');
+  const campos = document.getElementById('cuentaCampos');
+  const estado = document.getElementById('cuentaEstado');
+  const salir = document.getElementById('cuentaSalir');
+  formulario.hidden = !usuario.isAnonymous;
+  salir.hidden = usuario.isAnonymous;
+  estado.textContent = usuario.isAnonymous
+    ? 'Estás jugando como invitado. Podés registrarte y conservar tu partida.'
+    : usuario.email;
+  campos.disabled = false;
+
+  formulario.addEventListener('submit', async evento => {
+    evento.preventDefault();
+    const datos = new FormData(formulario);
+    const correo = datos.get('correo').trim();
+    const clave = datos.get('clave');
+    campos.disabled = true;
+    estado.textContent = 'Conectando…';
+    try {
+      if (evento.submitter?.value === 'registro') {
+        await linkWithCredential(usuario, EmailAuthProvider.credential(correo, clave));
+      } else {
+        await signInWithEmailAndPassword(auth, correo, clave);
+      }
+      location.reload();
+    } catch (error) {
+      const mensajes = {
+        'auth/weak-password': 'Usá una contraseña de al menos seis caracteres.',
+        'auth/email-already-in-use': 'Ese correo ya está registrado. Iniciá sesión.',
+        'auth/invalid-credential': 'Revisá el correo y la contraseña.',
+        'auth/operation-not-allowed': 'El acceso con correo y contraseña todavía no está habilitado en Firebase.'
+      };
+      estado.textContent = mensajes[error.code] || 'No se pudo acceder a la cuenta. Probá de nuevo.';
+      campos.disabled = false;
+    }
+  });
+
+  salir.addEventListener('click', async () => {
+    salir.disabled = true;
+    try {
+      await signOut(auth);
+      location.reload();
+    } catch {
+      estado.textContent = 'No se pudo cerrar la sesión. Probá de nuevo.';
+      salir.disabled = false;
+    }
+  });
 }
 
 function prepararChatbot(app) {
@@ -169,17 +223,11 @@ if (!configurado) {
     // sin pedir mail ni contraseña. Las reglas de Firestore usan ese
     // uid para que cada uno solo pueda leer y escribir SU partida.
     const auth = getAuth(app);
-    onAuthStateChanged(auth, (usuario) => {
-      if (usuario) {
-        window.firebaseUid = usuario.uid;
-        avisarListo('ok');
-      }
-    });
-    signInAnonymously(auth).catch((e) => {
-      console.error('[Firebase] No se pudo iniciar sesión anónima. ' +
-                    '¿Está activado "Anónimo" en Authentication?', e);
-      avisarListo('error');
-    });
+    await auth.authStateReady();
+    const usuario = auth.currentUser || (await signInAnonymously(auth)).user;
+    window.firebaseUid = usuario.uid;
+    prepararCuenta(auth, usuario);
+    avisarListo('ok');
   } catch (e) {
     console.error('[Firebase] Error al iniciar:', e);
     window.tiaDisponible = false;

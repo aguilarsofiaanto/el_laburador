@@ -2,10 +2,12 @@
 
 Se usa para dos cosas:
 
-- **Guardar la partida** en Firestore, con login anónimo.
+- **Guardar la partida** en Firestore, como invitado o con una cuenta de correo y contraseña.
 - **El chatbot** (la Tía Marta), con Gemini a través de Firebase AI Logic.
 
 Todo entra en el plan gratuito (**Spark**). No hace falta tarjeta.
+
+Para habilitar **Registrarse** e **Iniciar sesión**, abrí Firebase Console → **Authentication → Sign-in method** y habilitá **Correo electrónico/contraseña**. Mantené **Anónimo** activo para el modo invitado. Al registrarte, Firebase vincula el correo al usuario invitado y conserva su partida guardada.
 
 > **¿Hay que importar una base de datos?** No. Firestore no necesita datos iniciales: la colección `partidas` se crea sola la primera vez que alguien guarda. Lo único que hay que "cargar" son las **reglas de seguridad** del archivo [`firestore.rules`](firestore.rules) (paso 3).
 

@@ -277,6 +277,20 @@
         </div>
 
 
+        <details class="pi-cuenta">
+          <summary>Cuenta de jugador</summary>
+          <p id="cuentaEstado" role="status">Conectando con Firebase…</p>
+          <form id="cuentaForm">
+            <fieldset id="cuentaCampos" disabled>
+              <label>Correo <input name="correo" type="email" autocomplete="email" required></label>
+              <label>Contraseña <input name="clave" type="password" autocomplete="current-password" required></label>
+              <button class="btn" type="submit" value="login">Iniciar sesión</button>
+              <button class="btn" type="submit" value="registro">Registrarse</button>
+            </fieldset>
+          </form>
+          <button class="btn" id="cuentaSalir" type="button" hidden>Cerrar sesión</button>
+        </details>
+
         <button class="pi-jugar" id="btnContinuar" onclick="continuarPartida()" style="display:none;">
         Continuar partida
         </button>
