@@ -132,3 +132,23 @@ Con los valores actuales, una simulación de miles de partidas dio esto: un juga
 - Equipo: _(completar)_
 - Motor: [p5.js](https://p5js.org/) 1.9.0 + p5.sound
 - Sonidos: _(completar de dónde salió cada audio y su licencia)_
+
+
+### Cámara y mouse
+
+Podés seguir mirando al arrastrar o activar **Fijar mouse (M)** durante la
+partida. Al capturarlo, el movimiento del mouse gira la vista sin llegar al borde
+de la pantalla. **Escape** lo libera. Los diálogos y la gestión también lo sueltan;
+para retomarlo, pulsá M o el botón otra vez. En celular se mantienen los controles
+táctiles. Si el navegador no admite captura, sigue disponible arrastrar.
+
+La velocidad base de caminata pasó de 5 a 7 unidades por cuadro; Shift mantiene
+la carrera a 11. La cámara usa un plano cercano de 2 unidades, menor que el radio
+de colisión de 18: evita que la puerta de la heladera y el panel del estante se
+recorten visualmente antes de alcanzar el mueble.
+
+Pruebas de cuentas y cámara (desde la raíz, con Node.js):
+
+```sh
+node --test juego/tests/*.test.cjs
+```

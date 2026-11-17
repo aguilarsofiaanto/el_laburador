@@ -15,7 +15,7 @@ const ALTURA_OJOS = 65;
 let camAngulo = 0;   // giro horizontal
 let camPitch  = 0;   // giro vertical
 
-const VEL_MOV    = 5;
+const VEL_MOV    = 7;
 const VEL_CORRER = 11;
 const RADIO_JUGADOR = 18;
 
@@ -66,7 +66,7 @@ function actualizarMovimientoJugador() {
 
   // Con un diálogo abierto o escribiendo, el jugador no camina
   // (antes WASD movía la cámara detrás del cartel)
-  if (dialogoAbierto || escribiendoEnCampo()) {
+  if (!puedeMirarJugador()) {
     actualizarSonidoPasos(false, false, false);
     const indicador = document.getElementById('indicadorCorrer');
     if (indicador) indicador.classList.add('oculto');
@@ -130,18 +130,105 @@ function aplicarCamaraPrimeraPersona() {
   camera(jugX, ALTURA_OJOS, jugZ,   objX, objY, objZ,   0, 1, 0);
 }
 
-// ---- Arrastrar el mouse gira la cámara ----
-function mouseDragged() {
-  if (!juegoIniciado) return true;
-
-  camAngulo += (mouseX - pmouseX) * 0.4;
-  camPitch = constrain(camPitch - (mouseY - pmouseY) * 0.2, -35, 35);
-  return false;   // evita que el arrastre scrollee la página
+// El plano cercano predeterminado de p5 es 80: mayor que el radio
+// del jugador (18). Recortaba puertas y paneles antes de llegar al choque.
+const PLANO_CERCANO = 2;
+function ajustarPerspectivaJugador(w, h) {
+  perspective(undefined, w / h, PLANO_CERCANO, 8000);
 }
 
+function puedeMirarJugador() {
+  const panel = document.getElementById('phasePanel');
+  return juegoIniciado && !caminos.partidaTerminada && !dialogoAbierto &&
+    !escribiendoEnCampo() && (!panel || panel.classList.contains('oculto'));
+}
+
+function girarVista(dx, dy) {
+  camAngulo += dx * 0.4;
+  camPitch = constrain(camPitch - dy * 0.2, -35, 35);
+}
+
+function canvasJugador() {
+  return document.querySelector('#canvasWrapper canvas');
+}
+
+function mouseEstaFijado() {
+  const canvas = canvasJugador();
+  return !!canvas && document.pointerLockElement === canvas;
+}
+
+function soltarMouse() {
+  if (mouseEstaFijado()) document.exitPointerLock();
+}
+
+async function alternarMouseFijado() {
+  if (mouseEstaFijado()) {
+    soltarMouse();
+    return;
+  }
+  const canvas = canvasJugador();
+  if (!puedeMirarJugador() || !canvas?.requestPointerLock) return;
+  try {
+    await canvas.requestPointerLock();
+  } catch {
+    avisarErrorMouse();
+  }
+}
+
+function avisarErrorMouse() {
+  const aviso = document.getElementById('avisoMouse');
+  if (aviso) aviso.textContent = 'No se pudo fijar el mouse. Podés seguir mirando al arrastrar.';
+}
+
+function actualizarMouseFijado() {
+  if (!puedeMirarJugador()) soltarMouse();
+  const boton = document.getElementById('btnMouse');
+  if (!boton) return;
+  const canvas = canvasJugador();
+  boton.hidden = !juegoIniciado || !canvas?.requestPointerLock;
+  boton.disabled = !puedeMirarJugador();
+  const fijado = mouseEstaFijado();
+  const texto = fijado ? 'Soltar mouse (Esc)' : 'Fijar mouse (M)';
+  if (boton.textContent !== texto) boton.textContent = texto;
+  boton.setAttribute('aria-pressed', String(fijado));
+}
+
+// Mantener arrastrar como alternativa. Con captura, mousemove usa el
+// movimiento relativo y permite girar sin llegar al borde de la pantalla.
+function mouseDragged(evento) {
+  if (!puedeMirarJugador() || mouseEstaFijado()) return true;
+  if (evento && evento.target !== canvasJugador()) return true;
+  girarVista(mouseX - pmouseX, mouseY - pmouseY);
+  return false;
+}
+
+document.addEventListener('mousemove', (evento) => {
+  if (mouseEstaFijado() && puedeMirarJugador()) {
+    girarVista(evento.movementX, evento.movementY);
+  }
+});
+
+document.addEventListener('pointerlockchange', () => {
+  const aviso = document.getElementById('avisoMouse');
+  if (aviso) aviso.textContent = '';
+  actualizarMouseFijado();
+});
+document.addEventListener('pointerlockerror', avisarErrorMouse);
+document.addEventListener('keydown', (evento) => {
+  if (evento.key === 'Escape') soltarMouse();
+});
+window.addEventListener('blur', soltarMouse);
+
 // ---- Teclas de acción ----
-function keyPressed() {
+function keyPressed(evento) {
   if (!juegoIniciado || caminos.partidaTerminada || escribiendoEnCampo()) return;
+
+  // M = fijar/soltar el mouse (Escape también lo libera en el navegador).
+  if (key === 'm' || key === 'M') {
+    if (evento?.repeat) return false;
+    alternarMouseFijado();
+    return false;
+  }
 
   // R = resetear la vista
   if (key === 'r' || key === 'R') {

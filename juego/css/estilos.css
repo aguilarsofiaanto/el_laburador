@@ -2192,3 +2192,32 @@ body.tactil #canvasWrapper::after {
 #cuentaPanel input:focus-visible, #cuentaPanel button:focus-visible, #cuentaPanel summary:focus-visible { outline: 2px solid #f2a93b; outline-offset: 3px; }
 #cuentaMensaje { color: #9ed5a6; }
 #cuentaMensaje.cuenta-error { color: #ffaaa6; }
+
+
+#btnMouse {
+  position: absolute;
+  right: 24px;
+  bottom: 132px;
+  z-index: 20;
+  padding: 10px 12px;
+  border: 1px solid #75634c;
+  border-radius: 8px;
+  background: rgba(20, 20, 20, .9);
+  color: #fff3dd;
+  font: inherit;
+  cursor: pointer;
+}
+#btnMouse:disabled { opacity: .4; cursor: default; }
+#btnMouse:focus-visible { outline: 2px solid #f2a93b; outline-offset: 3px; }
+#avisoMouse {
+  position: absolute;
+  right: 24px;
+  bottom: 180px;
+  max-width: 280px;
+  z-index: 20;
+  color: #ffaaa6;
+  font-size: 13px;
+}
+@media (pointer: coarse) {
+  #btnMouse, #avisoMouse { display: none; }
+}

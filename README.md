@@ -31,7 +31,8 @@ Después entrá en [localhost:5517](http://localhost:5517/) y elegí **Jugar**.
 | --- | --- |
 | Caminar | W, A, S, D |
 | Correr | Shift |
-| Mirar | Arrastrar el mouse |
+| Mirar | Arrastrar el mouse, o M para fijarlo |
+| Soltar el mouse | Escape |
 | Atender al cliente | L |
 | Cerrar el día | E junto a la puerta |
 

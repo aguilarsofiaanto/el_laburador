@@ -33,6 +33,7 @@ function setup() {
   cnv.parent('canvasWrapper');
 
   angleMode(DEGREES);      // trabajar en grados, no en radianes
+  ajustarPerspectivaJugador(w, h);
 
   generarColoresClutter(); // colores fijos de la mercadería
   generarTexturas();       // texturas procedurales (madera, pared, piso)
@@ -54,6 +55,7 @@ function setup() {
 function draw() {
   background(10, 9, 8);
 
+  actualizarMouseFijado();
   aplicarIluminacion();
   aplicarCamaraPrimeraPersona();
 
@@ -69,4 +71,5 @@ function draw() {
 function windowResized() {
   const { w, h } = obtenerDimensiones();
   resizeCanvas(w, h);
+  ajustarPerspectivaJugador(w, h);
 }
