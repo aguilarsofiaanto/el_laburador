@@ -19,6 +19,16 @@ function actualizarHUD() {
   document.getElementById('hudSemana').textContent =
     `Sem ${gameState.semanaActual} · ${nombreDiaActual()}`;
 
+  // Cuánta gente vino hoy y cuánta se espera. Antes del primer
+  // cliente es una estimación que cambia con tus precios.
+  const elClientes = document.getElementById('hudClientes');
+  if (elClientes) {
+    const esperados = clientesEsperadosHoy();
+    elClientes.textContent = gameState.clientesEsperadosHoy === null
+      ? `Hoy se esperan ~${esperados} clientes`
+      : `Clientes hoy: ${gameState.clientesHoy} de ${esperados}`;
+  }
+
   document.getElementById('hudCaja').textContent =
     `$${gameState.caja.toLocaleString('es-AR')}`;
 
@@ -81,13 +91,22 @@ async function continuarPartida() {
 
   iniciarMusicaAmbiente();
   actualizarHUD();
+
+  // Retoma justo donde se cortó:
+  if (caminos.eventoPendiente) {
+    // se había cerrado la semana y faltaba el evento (o el final)
+    setTimeout(continuarTrasBalance, 400);
+  } else if (!gameState.diaIniciado) {
+    // el día nuevo todavía no había arrancado (mensaje y evento del día)
+    setTimeout(abrirKioscoDelDia, 400);
+  }
 }
 
-function nuevaPartidaConfirmar() {
-  if (haySartidaGuardada()) {
+async function nuevaPartidaConfirmar() {
+  if (await hayPartidaGuardada()) {
     const confirmar = confirm('Ya hay una partida guardada. ¿Empezar una nueva de todos modos? Se va a perder el progreso guardado.');
     if (!confirmar) return;
-    borrarPartidaGuardada();
+    await borrarPartidaGuardada();
   }
   empezarJuego();
 }
@@ -300,6 +319,9 @@ function cambiarPrecio(id, valor) {
   const el = document.getElementById(`precioValor-${id}`);
   el.textContent = `$${p.precio.toLocaleString('es-AR')}`;
   el.className = `precioValor ${clasificarPrecio(p)}`;
+
+  // La estimación de clientes del HUD reacciona a los precios
+  actualizarHUD();
 }
 
 // ==========================================================
@@ -330,7 +352,7 @@ const METAS = [
     titulo: 'Media fianza',
     premio: 'Cartel luminoso',
     descripcion: 'Pusiste un cartel de neón en la ventanita. Se ve desde la esquina ' +
-                 'y entra más gente: ganás $400 extra por cada cliente que atendés bien.',
+                 'y entra más gente: vienen 2 clientes más por día.',
     aplicar: () => { mejoras.carteLuminoso = true; }
   },
   {
@@ -384,9 +406,20 @@ function mostrarMetaAlcanzada(meta) {
 
 function cerrarMetaAlcanzada() {
   sonidoClick();
-  dialogoAbierto = false;
   document.getElementById('metaAlcanzada').classList.add('oculto');
+  // La meta puede aparecer encima de otro cartel (la radio, el
+  // balance): si queda alguno abierto, el juego sigue en pausa
+  dialogoAbierto = hayDialogoVisible();
   actualizarProgresoMetas();
+}
+
+// ¿Hay algún cartel o diálogo tapando el juego?
+function hayDialogoVisible() {
+  return ['dialogoCliente', 'eventoDia', 'eventoGrande', 'mensajeHermano', 'metaAlcanzada', 'chatTia']
+    .some(id => {
+      const el = document.getElementById(id);
+      return el && !el.classList.contains('oculto');
+    });
 }
 
 function actualizarProgresoMetas() {
@@ -426,6 +459,8 @@ function chequearColapso() {
   document.getElementById('dialogoCliente').classList.add('oculto');
   document.getElementById('eventoDia').classList.add('oculto');
   document.getElementById('mensajeHermano').classList.add('oculto');
+  if (typeof cerrarChatTia === 'function') cerrarChatTia();
+  dialogoAbierto = true;   // ya no se puede caminar ni atender
 
   // Un instante de pausa antes del final, para que se sienta el golpe
   setTimeout(() => renderFinal('colapso_estres'), 500);

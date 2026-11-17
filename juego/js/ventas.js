@@ -38,6 +38,8 @@ function clienteSeImpacienta() {
 // ATENDER UN CLIENTE
 // ==========================================================
 function abrirDialogoCliente() {
+  if (caminos.partidaTerminada) return;
+
   const dlg     = document.getElementById('dialogoCliente');
   const titulo  = document.getElementById('dcTitulo');
   const texto   = document.getElementById('dcTexto');
@@ -67,20 +69,27 @@ function abrirDialogoCliente() {
     return;
   }
 
-  const disponibles = gameState.productos.filter(
-    p => p.stock > 0 && p.id !== efectosDia.productoProhibido
-  );
+  // --- ¿Se terminó el día? La gente que viene depende de tus precios ---
+  if (gameState.clientesEsperadosHoy === null) {
+    gameState.clientesEsperadosHoy = calcularClientesDelDia();
+  }
+  if (gameState.clientesHoy >= gameState.clientesEsperadosHoy) {
+    cerrarDiaAutomatico();
+    return;
+  }
+  gameState.clientesHoy++;
 
   // --- Elige QUIÉN viene y qué está contando hoy ---
-    const cliente = elegirCliente();
-    sonidoPasosImportante();
-    const perfil = {
+  const cliente = elegirCliente();
+  sonidoPasosImportante();
+  const perfil = {
     nombre:  cliente.nombre,
     saludo:  saludoDelCliente(cliente),
     charla:  dialogoDelCliente(cliente),
     visitas: cliente.visitas
   };
   cliente.visitas++;
+  actualizarHUD();
 
   // Con estrés alto podés perder al cliente antes de atenderlo
   if (clienteSeImpacienta()) {
@@ -95,49 +104,121 @@ function abrirDialogoCliente() {
     return;
   }
 
-  if (disponibles.length === 0) {
+  // --- Qué viene a buscar (aunque vos no lo tengas) ---
+  const { pedido, faltantes } = armarPedido();
+
+  for (const f of faltantes) {
+    gameState.faltantesHoy[f.prod.id] = (gameState.faltantesHoy[f.prod.id] || 0) + 1;
+  }
+
+  if (pedido.length === 0) {
     titulo.textContent = perfil.nombre;
     texto.innerHTML = `<em>"${perfil.saludo}"</em><br><br>
-      Mira el estante vacío y se va sin decir nada. No tenés nada para venderle.`;
+      "¿Tenés ${listaNombres(faltantes)}?"
+      <br><br>${textoFaltantes(faltantes)}
+      <br><br>Se va sin comprar nada. Una venta perdida por no tener stock.`;
     botones.innerHTML = '<button class="btn" onclick="cerrarDialogoCliente()">Cerrar</button>';
-    gameState.estres = Math.min(100, gameState.estres + 10);
+    gameState.estres = Math.min(100, gameState.estres + 6);
     actualizarHUD();
     return;
   }
 
-  // --- Arma el pedido: 1 a 3 productos distintos ---
-  const cantidadItems = Math.min(disponibles.length, 1 + Math.floor(Math.random() * 3));
-  const mezclados = [...disponibles].sort(() => Math.random() - 0.5);
-
-  const pedido = [];
   let total = 0;
-
-  for (let i = 0; i < cantidadItems; i++) {
-    const prod = mezclados[i];
-    const esViral = prod.id === efectosDia.productoViral;
-    const base = esViral ? 3 : 1;
-    const cant = Math.min(prod.stock, base + Math.floor(Math.random() * 2));
-    pedido.push({ prod, cant, subtotal: cant * prod.precio });
-    total += cant * prod.precio;
-  }
+  for (const it of pedido) total += it.subtotal;
 
   // Promedio de desviación respecto del precio de mercado
-  let sobrePrecio = pedido.reduce((acc, it) =>
-    acc + (it.prod.precio - it.prod.precioJusto) / it.prod.precioJusto, 0) / pedido.length;
+  let sobrePrecio = pedido.reduce((acc, it) => acc + sobreprecioDe(it.prod), 0) / pedido.length;
 
   const tieneViral = pedido.some(it => it.prod.id === efectosDia.productoViral);
   if (tieneViral) sobrePrecio = 0;
 
+  // --- Mira los precios y decide si compra ---
+  if (Math.random() < chanceDeIrsePorPrecio(sobrePrecio)) {
+    titulo.textContent = perfil.nombre;
+    texto.innerHTML = `<em>"${perfil.saludo}"</em><br><br>
+      Mira los precios del cartel y frunce la cara.
+      <br><br><em>"Nah, mirá... paso. Está muy caro, voy al chino de la otra cuadra."</em>
+      <br><br><span style="color:#ff6b66;">Se fue sin comprar. Tus precios están bastante
+      por encima del mercado.</span>`;
+    botones.innerHTML = '<button class="btn" onclick="cerrarDialogoCliente()">Cerrar</button>';
+    gameState.estres = Math.min(100, gameState.estres + 4);
+    actualizarHUD();
+    return;
+  }
+
   const paga = billeteQuePaga(total);
 
-  clienteActual = { perfil, pedido, total, paga, vuelto: paga - total, sobrePrecio, intentos: 0 };
+  clienteActual = {
+    perfil, pedido, faltantes, total, paga,
+    vuelto: paga - total, sobrePrecio, intentos: 0, resuelto: false
+  };
 
   renderPedidoCliente();
 }
 
+// ---- Arma el pedido según lo que quiere la gente hoy ----
+// Elige productos al azar pero pesados por la demanda: el clima,
+// lo viral y tus precios cambian qué se pide. Si no tenés stock,
+// el producto queda en "faltantes" y esa venta se pierde.
+function armarPedido() {
+  const r = Math.random();
+  const cantidadItems = r < 0.6 ? 1 : r < 0.9 ? 2 : 3;
+
+  const candidatos = gameState.productos.map(p => ({ p, peso: pesoDemanda(p) }));
+  const pedido = [];
+  const faltantes = [];
+
+  for (let i = 0; i < cantidadItems && candidatos.length > 0; i++) {
+    const pesoTotal = candidatos.reduce((acc, c) => acc + c.peso, 0);
+    let tiro = Math.random() * pesoTotal;
+    let idx = 0;
+    while (idx < candidatos.length - 1 && tiro > candidatos[idx].peso) {
+      tiro -= candidatos[idx].peso;
+      idx++;
+    }
+    const prod = candidatos.splice(idx, 1)[0].p;
+
+    let cant = 1;
+    if (climaHoy.productos.includes(prod.id)) cant += Math.floor(Math.random() * 3);
+    if (prod.id === efectosDia.productoViral) cant = 2 + Math.floor(Math.random() * 3);
+
+    if (prod.id === efectosDia.productoProhibido) {
+      faltantes.push({ prod, motivo: 'prohibido' });
+    } else if (prod.stock === 0) {
+      faltantes.push({ prod, motivo: 'sinStock' });
+    } else {
+      const llevar = Math.min(cant, prod.stock);
+      pedido.push({ prod, cant: llevar, subtotal: llevar * prod.precio, pedia: cant });
+    }
+  }
+
+  return { pedido, faltantes };
+}
+
+function listaNombres(items) {
+  const nombres = items.map(it => it.prod.nombre);
+  if (nombres.length <= 1) return nombres.join('');
+  return nombres.slice(0, -1).join(', ') + ' y ' + nombres[nombres.length - 1];
+}
+
+function textoFaltantes(faltantes) {
+  const sinStock   = faltantes.filter(f => f.motivo === 'sinStock');
+  const prohibidos = faltantes.filter(f => f.motivo === 'prohibido');
+  let html = '';
+  if (sinStock.length > 0) {
+    html += `<span style="color:#ff6b66;">No te ${sinStock.length > 1 ? 'quedan' : 'queda'}
+      ${listaNombres(sinStock)}.</span> `;
+  }
+  if (prohibidos.length > 0) {
+    html += `<span style="color:#ff6b66;">${listaNombres(prohibidos)}
+      ${prohibidos.length > 1 ? 'están retirados' : 'está retirado'} del mercado hoy.</span>`;
+  }
+  return html;
+}
+
 // ---- Muestra el pedido SIN el total: eso lo calcula el jugador ----
 function renderPedidoCliente() {
-  const { perfil, pedido, paga, sobrePrecio } = clienteActual;
+  const { perfil, pedido, faltantes, paga, sobrePrecio } = clienteActual;
 
   document.getElementById('dcTitulo').textContent = perfil.nombre;
 
@@ -145,14 +226,21 @@ function renderPedidoCliente() {
     <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #2a2a2a;">
       <span>${it.cant} × ${it.prod.nombre}
         <span style="color:#8fb8d8; font-size:12px;">($${it.prod.precio.toLocaleString('es-AR')} c/u)</span>
+        ${it.pedia > it.cant
+          ? `<span style="color:#F2A93B; font-size:12px;"> · quería ${it.pedia}, te quedaban ${it.cant}</span>`
+          : ''}
       </span>
     </div>`).join('');
 
   let comentario = '';
-  if (sobrePrecio > 0.35) {
-    comentario = `<div style="color:#ff6b66; font-size:13px; margin-top:8px;">"Uh, ¿tanto está? Me parece caro eh..."</div>`;
-  } else if (sobrePrecio < -0.2) {
-    comentario = `<div style="color:#5FD96C; font-size:13px; margin-top:8px;">"Mirá qué bien de precio. Dame nomás."</div>`;
+  if (faltantes.length > 0) {
+    comentario += `<div style="font-size:13px; margin-top:8px;">
+      "¿No tenés ${listaNombres(faltantes)}? Bueno, dame lo otro." ${textoFaltantes(faltantes)}</div>`;
+  }
+  if (sobrePrecio > DEMANDA.toleranciaPrecio) {
+    comentario += `<div style="color:#ff6b66; font-size:13px; margin-top:8px;">"Uh, ¿tanto está? Me parece caro eh..."</div>`;
+  } else if (sobrePrecio < -0.1) {
+    comentario += `<div style="color:#5FD96C; font-size:13px; margin-top:8px;">"Mirá qué bien de precio. Dame nomás."</div>`;
   }
 
   document.getElementById('dcTexto').innerHTML = `
@@ -204,7 +292,8 @@ function renderPedidoCliente() {
 function verificarVuelto() {
   const inp = document.getElementById('inputVuelto');
   const feedback = document.getElementById('feedbackVuelto');
-  if (!inp || !clienteActual) return;
+  // "resuelto" evita que un doble Enter cobre la misma venta dos veces
+  if (!inp || !clienteActual || clienteActual.resuelto) return;
 
   if (inp.value === '') {
     feedback.innerHTML = '<span style="color:#ff6b66;">Poné cuánto vuelto le vas a dar.</span>';
@@ -215,6 +304,7 @@ function verificarVuelto() {
   const correcto  = clienteActual.vuelto;
 
   if (respuesta === correcto) {
+    clienteActual.resuelto = true;
     cobrarVenta(0, null);
     return;
   }
@@ -222,6 +312,7 @@ function verificarVuelto() {
   const diferencia = respuesta - correcto;
 
   if (diferencia > 0) {
+    clienteActual.resuelto = true;
     feedback.innerHTML = `<span style="color:#ff6b66;">
       Le diste $${diferencia.toLocaleString('es-AR')} de más. Se va rápido, sin decir nada.</span>`;
     setTimeout(() => cobrarVenta(diferencia, 'de_mas'), 900);
@@ -231,6 +322,7 @@ function verificarVuelto() {
     clienteActual.intentos++;
 
     if (clienteActual.intentos >= 2) {
+      clienteActual.resuelto = true;
       setTimeout(() => cobrarVenta(0, 'reclamo'), 900);
     } else {
       inp.value = '';
@@ -241,24 +333,12 @@ function verificarVuelto() {
 
 // ---- Concreta la venta ----
 function cobrarVenta(perdidaExtra, tipoError) {
-  const { pedido, total, paga, vuelto, sobrePrecio } = clienteActual;
-
-  if (sobrePrecio > 0.5 && Math.random() < 0.45 && !tipoError) {
-    document.getElementById('dcTexto').innerHTML = `
-      <em>"Nah, mirá... paso. Está muy caro, voy al chino de la otra cuadra."</em><br><br>
-      Se fue sin comprar. Tus precios están bastante por encima del mercado.`;
-    document.getElementById('dcBotones').innerHTML =
-      '<button class="btn" onclick="cerrarDialogoCliente()">Cerrar</button>';
-    gameState.estres = Math.min(100, gameState.estres + 10);
-    actualizarHUD();
-    clienteActual = null;
-    return;
-  }
+  if (!clienteActual) return;
+  const { pedido, total, paga, vuelto } = clienteActual;
 
   for (const it of pedido) it.prod.stock -= it.cant;
 
-  const bonusCartel = (mejoras.carteLuminoso && !tipoError) ? 400 : 0;
-  const neto = total - perdidaExtra + bonusCartel;
+  const neto = total - perdidaExtra;
 
   gameState.caja += neto;
   gameState.ventasDelDia += neto;
@@ -309,10 +389,6 @@ function cobrarVenta(perdidaExtra, tipoError) {
       <div style="display:flex; justify-content:space-between; font-size:13px; color:#ff6b66;">
         <span>Diste de más</span><span>−$${perdidaExtra.toLocaleString('es-AR')}</span>
       </div>` : ''}
-      ${bonusCartel > 0 ? `
-      <div style="display:flex; justify-content:space-between; font-size:13px; color:#5FD96C;">
-        <span>Bonus cartel luminoso</span><span>+$${bonusCartel.toLocaleString('es-AR')}</span>
-      </div>` : ''}
       <div style="display:flex; justify-content:space-between; font-weight:700; color:${color}; padding-top:8px; border-top:1px solid #333; margin-top:8px;">
         <span>Neto a caja</span><span>+$${neto.toLocaleString('es-AR')}</span>
       </div>
@@ -355,6 +431,7 @@ function cerrarDialogoCliente() {
 // ==========================================================
 
 function ofrecerFiado() {
+  if (!clienteActual) return;
   const { perfil, pedido, total } = clienteActual;
 
   // Le falta entre el 10% y el 30% del total
@@ -393,6 +470,7 @@ function ofrecerFiado() {
 
 // ---- Le fiás: entra menos plata pero queda una deuda ----
 function aceptarFiado() {
+  if (!clienteActual) return;
   const { perfil, pedido, total, falta, tiene } = clienteActual;
 
   for (const it of pedido) it.prod.stock -= it.cant;
@@ -445,6 +523,7 @@ function aceptarFiado() {
 
 // ---- Le vendés menos: se lleva solo lo que puede pagar ----
 function venderMenos() {
+  if (!clienteActual) return;
   const { pedido, tiene } = clienteActual;
 
   // Se le saca el producto más caro hasta que entre en su presupuesto

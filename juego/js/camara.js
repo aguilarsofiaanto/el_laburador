@@ -19,8 +19,24 @@ const VEL_MOV    = 5;
 const VEL_CORRER = 11;
 
 // ---- Lee el teclado y mueve al jugador ----
+// ¿El jugador está escribiendo en un campo (vuelto, chat)? Ahí las
+// letras W A S D R no tienen que mover ni resetear nada.
+function escribiendoEnCampo() {
+  const el = document.activeElement;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+}
+
 function actualizarMovimientoJugador() {
   if (!juegoIniciado) return;
+
+  // Con un diálogo abierto o escribiendo, el jugador no camina
+  // (antes WASD movía la cámara detrás del cartel)
+  if (dialogoAbierto || escribiendoEnCampo()) {
+    actualizarSonidoPasos(false, false, false);
+    const indicador = document.getElementById('indicadorCorrer');
+    if (indicador) indicador.classList.add('oculto');
+    return;
+  }
 
   // Vector "hacia adelante" según hacia dónde mira la cámara
   const dirX = -sin(camAngulo), dirZ = -cos(camAngulo);
@@ -91,7 +107,7 @@ function mouseDragged() {
 
 // ---- Teclas de acción ----
 function keyPressed() {
-  if (!juegoIniciado) return;
+  if (!juegoIniciado || caminos.partidaTerminada || escribiendoEnCampo()) return;
 
   // R = resetear la vista
   if (key === 'r' || key === 'R') {

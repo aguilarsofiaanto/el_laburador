@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// ==========================================================
+// REGLAS DE SEGURIDAD DE FIRESTORE — El Laburador
+//
+// Cómo se usan: Firebase console → Firestore Database → pestaña
+// "Reglas" → borrar lo que hay → pegar este archivo → Publicar.
+// (O con la CLI: firebase deploy --only firestore:rules)
+//
+// Qué permiten: cada jugador (usuario anónimo de Firebase Auth)
+// solo puede leer, guardar y borrar SU partida, en partidas/{uid}.
+// Todo lo demás está prohibido.
+// ==========================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /partidas/{uid} {
+      allow read, delete: if request.auth != null
+                          && request.auth.uid == uid;
+
+      // Al guardar, el documento tiene que parecerse a una partida
+      allow create, update: if request.auth != null
+                            && request.auth.uid == uid
+                            && request.resource.data.version is int
+                            && request.resource.data.gameState is map;
+    }
+
+    // Cualquier otra colección: nadie lee ni escribe
+    match /{todo=**} {
+      allow read, write: if false;
+    }
+  }
+}

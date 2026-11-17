@@ -6,6 +6,8 @@
 
 // ---- Cartel de evento diario ----
 function mostrarEventoDia(etiqueta, titulo, texto, botones) {
+  if (caminos.partidaTerminada) return;   // ya está el cartel del final
+
   document.getElementById('edEtiqueta').textContent = etiqueta;
   document.getElementById('edTitulo').textContent = titulo;
   document.getElementById('edTexto').innerHTML = texto;
@@ -32,9 +34,11 @@ function mostrarEventoDia(etiqueta, titulo, texto, botones) {
 // ---- Se llama al abrir el kiosco cada día ----
 function abrirKioscoDelDia() {
   cerrarDialogoCliente();
+  if (caminos.partidaTerminada) return;
 
-  // Los lunes llega el mensaje del hermano antes que nada
-  if (esLunes() && !caminos.partidaTerminada) {
+  // Los lunes llega el mensaje del hermano antes que nada.
+  // Si delataste al capo, tu hermano ya salió: no escribe más.
+  if (esLunes() && !caminos.delato) {
     mostrarMensajeHermano();
     return;
   }
@@ -44,6 +48,7 @@ function abrirKioscoDelDia() {
 function chequearEventoDelDia() {
   limpiarEfectosDia();
   limpiarClima();
+  gameState.diaIniciado = true;
 
   // Primero: cobrar multas pendientes de ayer
   if (efectosDia.multaPendiente > 0) {
@@ -164,6 +169,7 @@ function eventoConcursoRadio() {
           `"¡Correcto! Te ganaste <strong>$${premio.toLocaleString('es-AR')}</strong>."
            <br><br>Un poco de aire para la semana.`,
           [{ texto: 'Genial' }]);
+        chequearMetas();
       } else {
         mostrarEventoDia('Radio', 'Erraste',
           `"Uh, no. La respuesta era <strong>${q.ops[q.ok]}</strong>. Suerte la próxima."`,
@@ -321,9 +327,17 @@ function abrirDialogoSalida() {
   document.getElementById('promptPuerta').classList.add('oculto');
 
   const esUltimoDia = gameState.diaActual >= gameState.diasPorSemana;
+  const quedanClientes = Math.max(0, clientesEsperadosHoy() - gameState.clientesHoy);
+  const avisoQuedan = quedanClientes > 0
+    ? `<br><span style="color:#F2A93B; font-size:13px;">Todavía puede venir gente
+       (más o menos ${quedanClientes} cliente${quedanClientes > 1 ? 's' : ''}).</span>`
+    : '';
 
   // Último día: confirmación especial para saltar de semana
   if (esUltimoDia) {
+    const gastos = gameState.alquilerSemanal + gameState.luzSemanal + gameState.deudaAcumulada;
+    const quedaria = gameState.caja - gastos;
+
     titulo.textContent = `Fin de la semana ${gameState.semanaActual}`;
     texto.innerHTML = `
       Este es el último día de la semana. Si cerrás ahora, se hace el balance
@@ -333,6 +347,14 @@ function abrirDialogoSalida() {
         Vendiste $${gameState.ventasDeLaSemana.toLocaleString('es-AR')} esta semana ·
         Caja: $${gameState.caja.toLocaleString('es-AR')}
       </span>
+      <br>
+      <span style="color:#a8a094; font-size:13px;">
+        Gastos fijos a pagar: $${gastos.toLocaleString('es-AR')} ·
+        Te quedarían: $${Math.max(0, quedaria).toLocaleString('es-AR')}
+        (la fianza se cuenta después de pagar)
+      </span>
+      ${avisoQuedan}
+      ${resumenFaltantesHTML()}
       <br><br>
       <span style="color:#F2A93B;">
         ¿Seguro? Ya vas a saltar a la semana ${gameState.semanaActual + 1}.
@@ -351,13 +373,30 @@ function abrirDialogoSalida() {
     ¿Bajás la persiana por hoy?
     <br><br>
     <span style="color:#a8a094; font-size:13px;">
-      Hoy atendiste ${gameState.clientesAtendidosHoy} cliente(s) ·
-      Vendiste $${gameState.ventasDelDia.toLocaleString('es-AR')}
-    </span>`;
+      Hoy vinieron ${gameState.clientesHoy} cliente(s) y le vendiste a
+      ${gameState.clientesAtendidosHoy} · Vendiste $${gameState.ventasDelDia.toLocaleString('es-AR')}
+    </span>
+    ${avisoQuedan}
+    ${resumenFaltantesHTML()}`;
 
   botones.innerHTML = `
     <button class="btn" onclick="confirmarFinDeDia()">Cerrar y pasar al ${proximoDia}</button>
     <button class="btn btnSecundario" onclick="cerrarDialogoCliente()">Seguir atendiendo</button>`;
+}
+
+// Qué te pidieron hoy y no tenías: la pista para la próxima compra
+function resumenFaltantesHTML() {
+  const ids = Object.keys(gameState.faltantesHoy);
+  if (ids.length === 0) return '';
+
+  const detalle = ids.map(id => {
+    const p = gameState.productos.find(prod => prod.id === id);
+    const veces = gameState.faltantesHoy[id];
+    return `${p ? p.nombre : id}${veces > 1 ? ` (×${veces})` : ''}`;
+  }).join(', ');
+
+  return `<br><span style="color:#ff9b6b; font-size:13px;">
+    Te pidieron y no tenías: ${detalle}.</span>`;
 }
 
 function confirmarFinDeDia() {
@@ -368,8 +407,7 @@ function confirmarFinDeDia() {
   const descanso = gameState.estres > 60 ? 4 : 8;
   gameState.estres = Math.max(0, gameState.estres - descanso);
 
-  gameState.ventasDelDia = 0;
-  gameState.clientesAtendidosHoy = 0;
+  reiniciarContadoresDelDia();
   actualizarHUD();
 
   // Autoguardado: arranca un día nuevo
@@ -434,9 +472,8 @@ function confirmarFinDeSemana() {
   // --- Avanzar la semana ---
   gameState.semanaActual++;
   gameState.diaActual = 1;
-  gameState.ventasDelDia = 0;
   gameState.ventasDeLaSemana = 0;
-  gameState.clientesAtendidosHoy = 0;
+  reiniciarContadoresDelDia();
 
   if (caminos.clausurado > 0) caminos.clausurado--;
   extorsion.vecesEstaSemana = 0;   // se reinicia la extorsión del policía
@@ -450,7 +487,11 @@ function confirmarFinDeSemana() {
 
   actualizarHUD();
 
-  // Autoguardado: arranca la semana (y el día) nuevo
+  // Se decide YA qué pasa después del balance (final o evento de
+  // los caminos) y se guarda junto con la partida. Así, si alguien
+  // recarga la página en este momento, el evento lo espera igual:
+  // no se puede "esquivar" al policía o al capo recargando.
+  caminos.eventoPendiente = elegirEventoSemana();
   guardarPartida();
 
   document.getElementById('dcTitulo').textContent =
@@ -793,13 +834,13 @@ function eventoOlaDeCalor() {
 
 function eventoFestejoDelBarrio() {
   climaHoy.tipo = 'festejo';
-  climaHoy.productos = [];   // vacío = afecta a todos los productos
-  climaHoy.multiplicador = 2;
+  climaHoy.productos = [];   // no hay un producto en especial: viene más gente
+  climaHoy.multiplicador = 1.5;
 
   mostrarEventoDia('En la plaza', 'Hay festejo en el barrio',
     `Cortaron la calle. Armaron un escenario en la plaza y hay parlantes desde temprano.
      Va a pasar muchísima gente por la puerta.
-     <br><br><span style="color:#5FD96C;">Hoy los clientes se llevan más de todo.
+     <br><br><span style="color:#5FD96C;">Hoy viene bastante más gente que de costumbre.
      Aprovechá, pero cuidado con quedarte sin stock.</span>`,
     [{ texto: 'Abrir el kiosco' }]);
 }
@@ -874,12 +915,14 @@ function cerrarDiaAutomatico() {
 
   document.getElementById('dcTitulo').textContent = 'Se hizo la hora';
   document.getElementById('dcTexto').innerHTML = `
-    Atendiste <strong>${CLIENTES_POR_DIA} clientes</strong> hoy. Ya está oscureciendo
-    y no viene más nadie.
+    Hoy vinieron <strong>${gameState.clientesHoy} clientes</strong> y le vendiste a
+    ${gameState.clientesAtendidosHoy}. Ya está oscureciendo y no viene más nadie.
     <br><br>
     <span style="color:#a8a094; font-size:13px;">
       Vendiste $${gameState.ventasDelDia.toLocaleString('es-AR')} en el día.
+      Con precios más bajos viene más gente; con precios más altos, menos.
     </span>
+    ${resumenFaltantesHTML()}
     ${esUltimoDia
       ? '<br><br><span style="color:#F2A93B;">Es domingo: se cierra la semana.</span>'
       : ''}`;
@@ -927,6 +970,7 @@ function resolverFiados() {
   fiado.cobrado += cobradoAhora;
   fiado.perdido += perdidoAhora;
   gameState.caja += cobradoAhora;
+  if (cobradoAhora > 0) chequearMetas();
 
   if (perdidoAhora > 0) {
     gameState.estres = Math.min(100, gameState.estres + 8);

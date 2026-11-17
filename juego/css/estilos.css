@@ -126,6 +126,14 @@ body {
   color: #fff3dd;
 }
 
+/* Línea chica debajo del valor (ej.: clientes del día) */
+.hud-sub {
+  margin-top: 3px;
+
+  font-size: 11px;
+  color: #a8a094;
+}
+
 
 /* ---------- Fondo para la fianza ---------- */
 
@@ -1633,6 +1641,169 @@ body {
 
 
 
+/* ===== Botones redondos flotantes (sonido, celular) ===== */
+.btnFlotante {
+  position: absolute;
+  right: 24px;
+  bottom: 16px;
+
+  width: 48px;
+  height: 48px;
+
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+
+  color: #fff3dd;
+  font-size: 20px;
+  line-height: 1;
+
+  cursor: pointer;
+  z-index: 20;
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.btnFlotante:hover {
+  border-color: rgba(242, 169, 59, 0.7);
+}
+
+.btnFlotante:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+
+#btnCelular {
+  bottom: 74px;
+}
+
+
+/* ===== Chat con la Tía Marta (reusa el estilo del celular) ===== */
+#chatTia {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 4, 4, 0.82);
+  z-index: 94;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+#chatTia.oculto { display: none; }
+
+.ct-celular {
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 94vw);
+  max-height: 86vh;
+}
+
+.ct-cerrar {
+  background: none;
+  border: none;
+  color: #8fa5b3;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.ct-cerrar:hover { color: #fff; }
+
+.ct-acciones {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ct-chat {
+  flex: 1 1 auto;
+  min-height: 160px;
+  max-height: 46vh;
+  overflow-y: auto;
+  white-space: pre-wrap;   /* respeta los saltos de línea de la respuesta */
+}
+
+.mh-burbuja.ct-separador {
+  background: none;
+  color: #6a7d8a;
+  font-size: 12px;
+  text-align: center;
+  max-width: 100%;
+  padding: 4px 0;
+}
+
+.mh-burbuja.ct-escribiendo {
+  color: #8fa5b3;
+  font-style: italic;
+}
+
+.ct-sugerencias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 14px 0;
+  background: #0d1418;
+}
+
+.ct-sugerencia {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #2a3540;
+  border-radius: 14px;
+  color: #c9dff0;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.ct-sugerencia:hover:not(:disabled) {
+  border-color: #2f7a5a;
+}
+
+.ct-sugerencia:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ct-form {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #0d1418;
+}
+
+.ct-form input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 12px;
+  background: #1a2831;
+  border: 1px solid #2a3540;
+  border-radius: 10px;
+  color: #e8f0f4;
+  font-family: inherit;
+  font-size: 15px;
+}
+
+.ct-form input:focus {
+  outline: none;
+  border-color: #2f7a5a;
+}
+
+.ct-form .btn {
+  padding: 10px 16px;
+}
+
+.ct-pie {
+  padding: 0 14px 12px;
+  background: #0d1418;
+  color: #6a7d8a;
+  font-size: 11px;
+  text-align: center;
+}
+
+
 /* La barra de estrés late cuando está al límite */
 #estresBar .bar-fill.critico {
   animation: latido 0.7s ease-in-out infinite;
@@ -1777,6 +1948,7 @@ body.tactil #canvasWrapper::after {
 
   .hud-label { font-size: 9px; }
   .hud-value { font-size: 14px; }
+  .hud-sub   { font-size: 10px; }
 
   #kioscoSign {
     order: -1;
@@ -1813,6 +1985,17 @@ body.tactil #canvasWrapper::after {
     right: 12px;
     top: max(10px, env(safe-area-inset-top));
   }
+
+  .btnFlotante {
+    right: 12px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  #btnCelular {
+    bottom: calc(max(16px, env(safe-area-inset-bottom)) + 58px);
+  }
+
+  .ct-form input { font-size: 16px; }   /* 16px evita el zoom automático en iPhone */
 
   #phasePanel {
     max-height: 68vh;

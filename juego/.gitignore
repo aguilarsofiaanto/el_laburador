@@ -1,0 +1,17 @@
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+
+# Node / Firebase CLI
+node_modules/
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# Token de depuración de App Check (secreto, solo local)
+js/appcheck-debug.local.js
