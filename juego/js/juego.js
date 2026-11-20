@@ -36,7 +36,9 @@ function setup() {
   ajustarPerspectivaJugador(w, h);
 
   generarColoresClutter(); // colores fijos de la mercadería
+  cargarModelos3D();       // Modelos y texturas de Blender, con carga asincrónica
   generarTexturas();       // texturas procedurales (madera, pared, piso)
+  cargarModelos3D();       // Modelos y texturas de Blender, con carga asincr�nica
   actualizarHUD();
 
   audioListoInicializar(); // deja música y sonidos de pasos configurados
