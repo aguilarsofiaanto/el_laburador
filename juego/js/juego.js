@@ -24,6 +24,7 @@ function preload() {
 
 // p5.js ejecuta setup() UNA vez, al cargar la página
 function setup() {
+  configurarMouseInvertido();
   const { w, h } = obtenerDimensiones();
 
   setAttributes('antialias', true);          // bordes suaves, no dentados
@@ -36,9 +37,8 @@ function setup() {
   ajustarPerspectivaJugador(w, h);
 
   generarColoresClutter(); // colores fijos de la mercadería
-  cargarModelos3D();       // Modelos y texturas de Blender, con carga asincrónica
   generarTexturas();       // texturas procedurales (madera, pared, piso)
-  cargarModelos3D();       // Modelos y texturas de Blender, con carga asincr�nica
+  cargarModelos3D();       // Modelos y texturas de Blender
   actualizarHUD();
 
   audioListoInicializar(); // deja música y sonidos de pasos configurados

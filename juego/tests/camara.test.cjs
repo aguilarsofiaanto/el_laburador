@@ -22,6 +22,21 @@ function camara() {
   return { contexto, document, panel, canvas, evaluar: codigo => vm.runInContext(codigo, contexto) };
 }
 
+test('invertir el mouse conserva el giro horizontal y guarda la preferencia', () => {
+  const c = camara();
+  const preferencias = new Map();
+  c.contexto.localStorage = { setItem: (clave, valor) => preferencias.set(clave, valor) };
+  c.contexto.girarVista(10, 20);
+  assert.equal(c.evaluar('camPitch'), -4);
+  c.contexto.cambiarMouseInvertido(true);
+  c.contexto.girarVista(10, 20);
+  assert.equal(c.evaluar('camPitch'), 0);
+  assert.equal(c.evaluar('camAngulo'), 8);
+  assert.equal(preferencias.get('elLaburador.mouseInvertido'), '1');
+  c.contexto.girarVista(0, 1000);
+  assert.equal(c.evaluar('camPitch'), 35);
+});
+
 test('la colisión detiene al jugador frente a la puerta de cada heladera', () => {
   const c = camara();
   for (const x of [480, 240, -240, -480]) {

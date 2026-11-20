@@ -14,6 +14,21 @@ const ALTURA_OJOS = 65;
 // Hacia dónde está mirando (en grados)
 let camAngulo = 0;   // giro horizontal
 let camPitch  = 0;   // giro vertical
+let mouseInvertido = false;
+try {
+  mouseInvertido = localStorage.getItem('elLaburador.mouseInvertido') === '1';
+} catch {}
+
+function configurarMouseInvertido() {
+  document.getElementById('invertirMouse').checked = mouseInvertido;
+}
+
+function cambiarMouseInvertido(activado) {
+  mouseInvertido = activado;
+  try {
+    localStorage.setItem('elLaburador.mouseInvertido', activado ? '1' : '0');
+  } catch {}
+}
 
 const VEL_MOV    = 7;
 const VEL_CORRER = 11;
@@ -145,7 +160,8 @@ function puedeMirarJugador() {
 
 function girarVista(dx, dy) {
   camAngulo += dx * 0.4;
-  camPitch = constrain(camPitch - dy * 0.2, -35, 35);
+  const direccionVertical = mouseInvertido ? -1 : 1;
+  camPitch = constrain(camPitch - dy * 0.2 * direccionVertical, -35, 35);
 }
 
 function canvasJugador() {
