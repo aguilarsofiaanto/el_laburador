@@ -2176,3 +2176,48 @@ body.tactil #canvasWrapper::after {
   .compraRow { padding: 12px; }
   .precioRow { padding: 12px; }
 }
+
+/* Cuenta: mismo estilo que la pantalla de inicio, con espacio en móvil. */
+.pi-caja { overflow-y: auto; }
+#cuentaPanel { border-top: 1px solid #3a332a; padding: 12px 0; font-size: 14px; }
+#cuentaPanel p { margin: 8px 0; line-height: 1.5; }
+#cuentaPanel summary { cursor: pointer; color: #f2a93b; }
+.cuenta-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+#cuentaPanel [hidden] { display: none; }
+#cuentaPanel form { display: grid; gap: 10px; margin: 12px 0; }
+#cuentaPanel label { display: grid; gap: 5px; }
+#cuentaPanel input { width: 100%; box-sizing: border-box; padding: 10px; background: #0c0b0a; color: #fff; border: 1px solid #75634c; border-radius: 5px; font: inherit; }
+#cuentaPanel button { padding: 10px; border: 1px solid #75634c; border-radius: 5px; background: #292219; color: #f5e8d6; cursor: pointer; font: inherit; }
+#cuentaPanel button:disabled, .pi-jugar:disabled { opacity: .5; cursor: wait; }
+#cuentaPanel input:focus-visible, #cuentaPanel button:focus-visible, #cuentaPanel summary:focus-visible { outline: 2px solid #f2a93b; outline-offset: 3px; }
+#cuentaMensaje { color: #9ed5a6; }
+#cuentaMensaje.cuenta-error { color: #ffaaa6; }
+
+
+#btnMouse {
+  position: absolute;
+  right: 24px;
+  bottom: 132px;
+  z-index: 20;
+  padding: 10px 12px;
+  border: 1px solid #75634c;
+  border-radius: 8px;
+  background: rgba(20, 20, 20, .9);
+  color: #fff3dd;
+  font: inherit;
+  cursor: pointer;
+}
+#btnMouse:disabled { opacity: .4; cursor: default; }
+#btnMouse:focus-visible { outline: 2px solid #f2a93b; outline-offset: 3px; }
+#avisoMouse {
+  position: absolute;
+  right: 24px;
+  bottom: 180px;
+  max-width: 280px;
+  z-index: 20;
+  color: #ffaaa6;
+  font-size: 13px;
+}
+@media (pointer: coarse) {
+  #btnMouse, #avisoMouse { display: none; }
+}

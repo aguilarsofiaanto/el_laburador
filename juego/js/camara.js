@@ -14,9 +14,59 @@ const ALTURA_OJOS = 65;
 // Hacia dónde está mirando (en grados)
 let camAngulo = 0;   // giro horizontal
 let camPitch  = 0;   // giro vertical
+let mouseInvertido = false;
+try {
+  mouseInvertido = localStorage.getItem('elLaburador.mouseInvertido') === '1';
+} catch {}
 
-const VEL_MOV    = 5;
+function configurarMouseInvertido() {
+  document.getElementById('invertirMouse').checked = mouseInvertido;
+}
+
+function cambiarMouseInvertido(activado) {
+  mouseInvertido = activado;
+  try {
+    localStorage.setItem('elLaburador.mouseInvertido', activado ? '1' : '0');
+  } catch {}
+}
+
+const VEL_MOV    = 7;
 const VEL_CORRER = 11;
+const RADIO_JUGADOR = 18;
+
+const ESTANTES_LATERALES = [
+  { x: -780, z: -150 }, { x: -780, z: 150 }, { x: 780, z: -350 }
+];
+const HELADERAS = [480, 240, -240, -480].map(x => ({ x, z: -560 }));
+const ESTANTE_PRINCIPAL = { x: 0, z: -260, espacio: 120, fondo: 90 };
+const OBSTACULOS_KIOSCO = [
+  { x: 0, z: 260, ancho: 420, fondo: 47 }, // Mostrador
+  ...ESTANTES_LATERALES.map(p => ({ ...p, ancho: 136, fondo: 266 })),
+  ...HELADERAS.map(p => ({ ...p, ancho: 90, fondo: 86 }))
+];
+
+function chocaConMueble(x, z) {
+  const principal = {
+    ...ESTANTE_PRINCIPAL,
+    ancho: ESTANTE_PRINCIPAL.espacio * gameState.productos.length + 30
+  };
+  return [...OBSTACULOS_KIOSCO, principal].some(mueble => {
+    const dx = Math.max(0, Math.abs(x - mueble.x) - mueble.ancho / 2);
+    const dz = Math.max(0, Math.abs(z - mueble.z) - mueble.fondo / 2);
+    return dx * dx + dz * dz < RADIO_JUGADOR * RADIO_JUGADOR;
+  });
+}
+
+function moverJugador(dx, dz) {
+  const xAnterior = jugX;
+  const zAnterior = jugZ;
+  const x = constrain(jugX + dx, -850, 850);
+  const z = constrain(jugZ + dz, -600, 300);
+  // Resolver cada eje por separado permite deslizarse junto al mueble.
+  if (!chocaConMueble(x, jugZ)) jugX = x;
+  if (!chocaConMueble(jugX, z)) jugZ = z;
+  return jugX !== xAnterior || jugZ !== zAnterior;
+}
 
 // ---- Lee el teclado y mueve al jugador ----
 // ¿El jugador está escribiendo en un campo (vuelto, chat)? Ahí las
@@ -31,7 +81,7 @@ function actualizarMovimientoJugador() {
 
   // Con un diálogo abierto o escribiendo, el jugador no camina
   // (antes WASD movía la cámara detrás del cartel)
-  if (dialogoAbierto || escribiendoEnCampo()) {
+  if (!puedeMirarJugador()) {
     actualizarSonidoPasos(false, false, false);
     const indicador = document.getElementById('indicadorCorrer');
     if (indicador) indicador.classList.add('oculto');
@@ -71,13 +121,12 @@ function actualizarMovimientoJugador() {
   const indicador = document.getElementById('indicadorCorrer');
   if (indicador) indicador.classList.toggle('oculto', !corriendo);
 
-  const seMueve = (mx !== 0 || mz !== 0);
+  let seMueve = false;
 
-  if (seMueve) {
+  if (mx !== 0 || mz !== 0) {
     // Se normaliza para que la diagonal no sea más rápida
     const mag = Math.hypot(mx, mz);
-    jugX = constrain(jugX + (mx / mag) * velocidad, -850, 850);
-    jugZ = constrain(jugZ + (mz / mag) * velocidad, -600, 300);
+    seMueve = moverJugador((mx / mag) * velocidad, (mz / mag) * velocidad);
   }
 
   // Sonido de pasos del jugador (nunca usa "importante": eso es para NPCs)
@@ -96,18 +145,106 @@ function aplicarCamaraPrimeraPersona() {
   camera(jugX, ALTURA_OJOS, jugZ,   objX, objY, objZ,   0, 1, 0);
 }
 
-// ---- Arrastrar el mouse gira la cámara ----
-function mouseDragged() {
-  if (!juegoIniciado) return true;
-
-  camAngulo += (mouseX - pmouseX) * 0.4;
-  camPitch = constrain(camPitch - (mouseY - pmouseY) * 0.2, -35, 35);
-  return false;   // evita que el arrastre scrollee la página
+// El plano cercano predeterminado de p5 es 80: mayor que el radio
+// del jugador (18). Recortaba puertas y paneles antes de llegar al choque.
+const PLANO_CERCANO = 2;
+function ajustarPerspectivaJugador(w, h) {
+  perspective(undefined, w / h, PLANO_CERCANO, 8000);
 }
 
+function puedeMirarJugador() {
+  const panel = document.getElementById('phasePanel');
+  return juegoIniciado && !caminos.partidaTerminada && !dialogoAbierto &&
+    !escribiendoEnCampo() && (!panel || panel.classList.contains('oculto'));
+}
+
+function girarVista(dx, dy) {
+  camAngulo += dx * 0.4;
+  const direccionVertical = mouseInvertido ? -1 : 1;
+  camPitch = constrain(camPitch - dy * 0.2 * direccionVertical, -35, 35);
+}
+
+function canvasJugador() {
+  return document.querySelector('#canvasWrapper canvas');
+}
+
+function mouseEstaFijado() {
+  const canvas = canvasJugador();
+  return !!canvas && document.pointerLockElement === canvas;
+}
+
+function soltarMouse() {
+  if (mouseEstaFijado()) document.exitPointerLock();
+}
+
+async function alternarMouseFijado() {
+  if (mouseEstaFijado()) {
+    soltarMouse();
+    return;
+  }
+  const canvas = canvasJugador();
+  if (!puedeMirarJugador() || !canvas?.requestPointerLock) return;
+  try {
+    await canvas.requestPointerLock();
+  } catch {
+    avisarErrorMouse();
+  }
+}
+
+function avisarErrorMouse() {
+  const aviso = document.getElementById('avisoMouse');
+  if (aviso) aviso.textContent = 'No se pudo fijar el mouse. Podés seguir mirando al arrastrar.';
+}
+
+function actualizarMouseFijado() {
+  if (!puedeMirarJugador()) soltarMouse();
+  const boton = document.getElementById('btnMouse');
+  if (!boton) return;
+  const canvas = canvasJugador();
+  boton.hidden = !juegoIniciado || !canvas?.requestPointerLock;
+  boton.disabled = !puedeMirarJugador();
+  const fijado = mouseEstaFijado();
+  const texto = fijado ? 'Soltar mouse (Esc)' : 'Fijar mouse (M)';
+  if (boton.textContent !== texto) boton.textContent = texto;
+  boton.setAttribute('aria-pressed', String(fijado));
+}
+
+// Mantener arrastrar como alternativa. Con captura, mousemove usa el
+// movimiento relativo y permite girar sin llegar al borde de la pantalla.
+function mouseDragged(evento) {
+  if (!puedeMirarJugador() || mouseEstaFijado()) return true;
+  if (evento && evento.target !== canvasJugador()) return true;
+  girarVista(mouseX - pmouseX, mouseY - pmouseY);
+  return false;
+}
+
+document.addEventListener('mousemove', (evento) => {
+  if (mouseEstaFijado() && puedeMirarJugador()) {
+    girarVista(evento.movementX, evento.movementY);
+  }
+});
+
+document.addEventListener('pointerlockchange', () => {
+  const aviso = document.getElementById('avisoMouse');
+  if (aviso) aviso.textContent = '';
+  actualizarMouseFijado();
+});
+document.addEventListener('pointerlockerror', avisarErrorMouse);
+document.addEventListener('keydown', (evento) => {
+  if (evento.key === 'Escape') soltarMouse();
+});
+window.addEventListener('blur', soltarMouse);
+
 // ---- Teclas de acción ----
-function keyPressed() {
+function keyPressed(evento) {
   if (!juegoIniciado || caminos.partidaTerminada || escribiendoEnCampo()) return;
+
+  // M = fijar/soltar el mouse (Escape también lo libera en el navegador).
+  if (key === 'm' || key === 'M') {
+    if (evento?.repeat) return false;
+    alternarMouseFijado();
+    return false;
+  }
 
   // R = resetear la vista
   if (key === 'r' || key === 'R') {

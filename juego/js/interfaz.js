@@ -68,6 +68,7 @@ function mostrarTabInicio(id, btn) {
 
 function empezarJuego() {
   sonidoClick();
+  window.partidaUid = window.firebaseUid || null;
   juegoIniciado = true;
   document.getElementById('pantallaInicio').classList.add('oculto');
 
@@ -77,38 +78,57 @@ function empezarJuego() {
 }
 
 async function continuarPartida() {
-  sonidoClick();
+  if (window.inicioOcupado || cuentaOcupada || window.firebaseEstado === 'cargando') return;
+  window.inicioOcupado = true;
+  actualizarCuenta();
+  try {
+    sonidoClick();
 
-  const cargado = await cargarPartida();
-  if (!cargado) {
-    sonidoError();
-    alert('No se pudo cargar la partida guardada.');
-    return;
-  }
+    const cargado = await cargarPartida();
+    if (!cargado) {
+      sonidoError();
+      alert('No se pudo cargar la partida guardada.');
+      return;
+    }
 
-  juegoIniciado = true;
-  document.getElementById('pantallaInicio').classList.add('oculto');
+    juegoIniciado = true;
+    document.getElementById('pantallaInicio').classList.add('oculto');
 
-  iniciarMusicaAmbiente();
-  actualizarHUD();
+    iniciarMusicaAmbiente();
+    actualizarHUD();
 
-  // Retoma justo donde se cortó:
-  if (caminos.eventoPendiente) {
-    // se había cerrado la semana y faltaba el evento (o el final)
-    setTimeout(continuarTrasBalance, 400);
-  } else if (!gameState.diaIniciado) {
-    // el día nuevo todavía no había arrancado (mensaje y evento del día)
-    setTimeout(abrirKioscoDelDia, 400);
+    // Retoma justo donde se cortó:
+    if (caminos.eventoPendiente) {
+      // se había cerrado la semana y faltaba el evento (o el final)
+      setTimeout(continuarTrasBalance, 400);
+    } else if (!gameState.diaIniciado) {
+      // el día nuevo todavía no había arrancado (mensaje y evento del día)
+      setTimeout(abrirKioscoDelDia, 400);
+    }
+  } finally {
+    window.inicioOcupado = false;
+    actualizarCuenta();
   }
 }
 
 async function nuevaPartidaConfirmar() {
-  if (await hayPartidaGuardada()) {
-    const confirmar = confirm('Ya hay una partida guardada. ¿Empezar una nueva de todos modos? Se va a perder el progreso guardado.');
-    if (!confirmar) return;
-    await borrarPartidaGuardada();
+  if (window.inicioOcupado || cuentaOcupada || window.firebaseEstado === 'cargando') return;
+  window.inicioOcupado = true;
+  actualizarCuenta();
+  try {
+    if (await hayPartidaGuardada()) {
+      const confirmar = confirm('Ya hay una partida guardada. ¿Empezar una nueva de todos modos? Se va a perder el progreso guardado.');
+      if (!confirmar) return;
+      if (!(await borrarPartidaGuardada())) {
+        alert('No se pudo borrar la partida anterior. Revisá tu conexión e intentá nuevamente.');
+        return;
+      }
+    }
+    empezarJuego();
+  } finally {
+    window.inicioOcupado = false;
+    actualizarCuenta();
   }
-  empezarJuego();
 }
 
 // ==========================================================

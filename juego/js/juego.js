@@ -24,6 +24,7 @@ function preload() {
 
 // p5.js ejecuta setup() UNA vez, al cargar la página
 function setup() {
+  configurarMouseInvertido();
   const { w, h } = obtenerDimensiones();
 
   setAttributes('antialias', true);          // bordes suaves, no dentados
@@ -33,9 +34,11 @@ function setup() {
   cnv.parent('canvasWrapper');
 
   angleMode(DEGREES);      // trabajar en grados, no en radianes
+  ajustarPerspectivaJugador(w, h);
 
   generarColoresClutter(); // colores fijos de la mercadería
   generarTexturas();       // texturas procedurales (madera, pared, piso)
+  cargarModelos3D();       // Modelos y texturas de Blender
   actualizarHUD();
 
   audioListoInicializar(); // deja música y sonidos de pasos configurados
@@ -54,6 +57,7 @@ function setup() {
 function draw() {
   background(10, 9, 8);
 
+  actualizarMouseFijado();
   aplicarIluminacion();
   aplicarCamaraPrimeraPersona();
 
@@ -69,4 +73,5 @@ function draw() {
 function windowResized() {
   const { w, h } = obtenerDimensiones();
   resizeCanvas(w, h);
+  ajustarPerspectivaJugador(w, h);
 }

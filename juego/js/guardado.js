@@ -1,7 +1,7 @@
 // ==========================================================
 // GUARDADO Y CARGA DE PARTIDA
 // El progreso completo vive en Firestore, en partidas/{uid}.
-// El uid sale del login anónimo de Firebase (ver firebase.js):
+// El uid sale de la sesión de Firebase (ver firebase.js):
 // cada navegador tiene el suyo y las reglas de Firestore solo
 // le dejan tocar su propio documento.
 // ==========================================================
@@ -18,26 +18,35 @@ const VERSION_GUARDADO = 2;
 // ==========================================================
 function firebaseListo() {
   return new Promise((resolve) => {
-    if (window.firebaseEstado) {
+    if (window.firebaseEstado && window.firebaseEstado !== 'cargando') {
       resolve(window.firebaseEstado === 'ok');
       return;
     }
-    const plazo = setTimeout(() => resolve(false), 6000);
-    window.addEventListener('firebaseListo', () => {
+    const terminar = () => {
+      if (window.firebaseEstado === 'cargando') return;
       clearTimeout(plazo);
+      window.removeEventListener('firebaseListo', terminar);
       resolve(window.firebaseEstado === 'ok');
-    }, { once: true });
+    };
+    const plazo = setTimeout(() => {
+      window.removeEventListener('firebaseListo', terminar);
+      resolve(false);
+    }, 6000);
+    window.addEventListener('firebaseListo', terminar);
   });
 }
 
-function referenciaPartida() {
-  return window.firebaseDoc(window.firebaseDB, COLECCION_PARTIDAS, window.firebaseUid);
+function referenciaPartida(uid = window.firebaseUid) {
+  if (!uid || uid !== window.firebaseUid) throw new Error('La sesión cambió.');
+  return window.firebaseDoc(window.firebaseDB, COLECCION_PARTIDAS, uid);
 }
 
 // ==========================================================
 // GUARDAR
 // ==========================================================
 async function guardarPartida() {
+  const uid = window.partidaUid;
+  if (!uid || uid !== window.firebaseUid) return false;
   const datos = {
     version: VERSION_GUARDADO,
     fecha: new Date().toISOString(),
@@ -65,7 +74,7 @@ async function guardarPartida() {
     // deja solo datos puros.
     const datosLimpios = JSON.parse(JSON.stringify(datos));
 
-    await window.firebaseSetDoc(referenciaPartida(), datosLimpios);
+    await window.firebaseSetDoc(referenciaPartida(uid), datosLimpios);
     return true;
   } catch (e) {
     console.error('No se pudo guardar la partida:', e);
@@ -97,7 +106,9 @@ async function guardarPartidaManual() {
 async function leerPartidaGuardada() {
   if (!(await firebaseListo())) return null;
 
-  const snap = await window.firebaseGetDoc(referenciaPartida());
+  const uid = window.firebaseUid;
+  const snap = await window.firebaseGetDoc(referenciaPartida(uid));
+  if (uid !== window.firebaseUid) throw new Error('La sesión cambió durante la carga.');
   if (!snap.exists()) return null;
 
   const datos = snap.data();
@@ -150,6 +161,7 @@ async function cargarPartida() {
     if (gameState.diaIniciado === undefined) gameState.diaIniciado = true;
     if (gameState.mensajesTiaHoy === undefined) gameState.mensajesTiaHoy = 0;
 
+    window.partidaUid = window.firebaseUid;
     return true;
   } catch (e) {
     console.error('No se pudo cargar la partida:', e);
@@ -162,9 +174,10 @@ async function cargarPartida() {
 // (al empezar una nueva o cuando la partida llega a un final)
 // ==========================================================
 async function borrarPartidaGuardada() {
+  const uid = window.firebaseUid;
   try {
     if (!(await firebaseListo())) return false;
-    await window.firebaseDeleteDoc(referenciaPartida());
+    await window.firebaseDeleteDoc(referenciaPartida(uid));
     return true;
   } catch (e) {
     console.error('No se pudo borrar la partida guardada:', e);
@@ -176,11 +189,18 @@ async function borrarPartidaGuardada() {
 // MOSTRAR BOTÓN "CONTINUAR PARTIDA" SI CORRESPONDE
 // Se ejecuta solo, apenas carga la página.
 // ==========================================================
-document.addEventListener('DOMContentLoaded', async () => {
+let consultaPartida = 0;
+async function actualizarBotonContinuar() {
+  const consulta = ++consultaPartida;
+  const uid = window.firebaseUid;
   const btn = document.getElementById('btnContinuar');
   if (!btn) return;
-
+  btn.style.display = 'none';
   if (await hayPartidaGuardada()) {
-    btn.style.display = 'block';
+    if (consulta === consultaPartida && uid === window.firebaseUid) {
+      btn.style.display = 'block';
+    }
   }
-});
+}
+document.addEventListener('DOMContentLoaded', actualizarBotonContinuar);
+window.addEventListener('sesionCambiada', actualizarBotonContinuar);

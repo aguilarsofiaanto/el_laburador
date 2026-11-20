@@ -13,9 +13,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
 import {
   getFirestore, doc, setDoc, getDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import {
-  getAuth, signInAnonymously, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import { inicializarSesion } from "./sesion.js";
 import {
   initializeAppCheck, ReCaptchaEnterpriseProvider
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check.js";
@@ -66,13 +64,10 @@ const VOZ_TIA = "Gacrux";
 // ==========================================================
 
 const configurado = !Object.values(firebaseConfig).some(v => String(v).includes('PEGAR_ACA'));
-let yaAvisado = false;
 
 // Le avisa al resto del juego (guardado.js) que Firebase terminó
 // de arrancar, bien o mal: 'ok' | 'desactivado' | 'error'
 function avisarListo(estado) {
-  if (yaAvisado) return;
-  yaAvisado = true;
   window.firebaseEstado = estado;
   window.dispatchEvent(new Event('firebaseListo'));
 }
@@ -165,21 +160,7 @@ if (!configurado) {
 
     prepararChatbot(app);
 
-    // Login anónimo: cada navegador tiene su propio usuario (uid)
-    // sin pedir mail ni contraseña. Las reglas de Firestore usan ese
-    // uid para que cada uno solo pueda leer y escribir SU partida.
-    const auth = getAuth(app);
-    onAuthStateChanged(auth, (usuario) => {
-      if (usuario) {
-        window.firebaseUid = usuario.uid;
-        avisarListo('ok');
-      }
-    });
-    signInAnonymously(auth).catch((e) => {
-      console.error('[Firebase] No se pudo iniciar sesión anónima. ' +
-                    '¿Está activado "Anónimo" en Authentication?', e);
-      avisarListo('error');
-    });
+    inicializarSesion(app, avisarListo);
   } catch (e) {
     console.error('[Firebase] Error al iniciar:', e);
     window.tiaDisponible = false;

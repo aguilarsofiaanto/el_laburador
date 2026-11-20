@@ -249,7 +249,10 @@
 
             <div class="pi-control">
               <span class="pi-tecla">Mouse</span>
-              Arrastrar para mirar alrededor
+              Arrastrar para mirar alrededor. También podés usar «Fijar mouse» o M; Escape lo suelta.
+            </div>
+            <div class="pi-control">
+              <label><input id="invertirMouse" type="checkbox" onchange="cambiarMouseInvertido(this.checked)"> Invertir eje vertical del mouse</label>
             </div>
 
             <div class="pi-control">
@@ -277,11 +280,42 @@
         </div>
 
 
+        <section id="cuentaPanel" aria-label="Tu cuenta">
+          <p id="cuentaEstado" role="status">Conectando con tu cuenta…</p>
+          <details id="cuentaAcceso">
+            <summary>Iniciar sesión o crear cuenta</summary>
+            <p>Creá una cuenta para retomar tu partida desde otro dispositivo.</p>
+            <div class="cuenta-acciones">
+              <button type="button" data-modo-cuenta="ingresar">Ingresar</button>
+              <button type="button" data-modo-cuenta="registrar">Crear cuenta</button>
+              <button type="button" data-modo-cuenta="recuperar">Olvidé mi contraseña</button>
+            </div>
+            <form id="cuentaForm">
+              <label>Correo electrónico
+                <input id="cuentaCorreo" type="email" autocomplete="email" required maxlength="254">
+              </label>
+              <label id="cuentaClaveGrupo">Contraseña
+                <input id="cuentaClave" type="password" autocomplete="current-password" required>
+              </label>
+              <label id="cuentaConfirmarGrupo" hidden>Repetí la contraseña
+                <input id="cuentaConfirmar" type="password" autocomplete="new-password">
+              </label>
+              <button id="cuentaEnviar" type="submit">Iniciar sesión</button>
+            </form>
+            <p>Podés seguir como invitado. En ese caso, tu partida depende de la sesión de este navegador.</p>
+          </details>
+          <div id="cuentaSesion" class="cuenta-acciones" hidden>
+            <button id="cuentaVerificar" type="button">Reenviar verificación</button>
+            <button id="cuentaSalir" type="button">Cerrar sesión</button>
+          </div>
+          <p id="cuentaMensaje" role="status" aria-live="polite"></p>
+        </section>
+
         <button class="pi-jugar" id="btnContinuar" onclick="continuarPartida()" style="display:none;">
         Continuar partida
         </button>
 
-        <button class="pi-jugar" onclick="nuevaPartidaConfirmar()">
+        <button class="pi-jugar" id="btnNuevaPartida" onclick="nuevaPartidaConfirmar()">
         Abrir el kiosco
         </button>
 
@@ -524,6 +558,12 @@
 
 
 
+    <button id="btnMouse" type="button" onclick="alternarMouseFijado()"
+            aria-pressed="false" title="Mirar sin arrastrar. M para fijar, Escape para soltar." hidden>
+      Fijar mouse (M)
+    </button>
+    <span id="avisoMouse" role="status" aria-live="polite"></span>
+
     <!-- ===== Botón de sonido ===== -->
     <button id="btnSonido" class="btnFlotante" onclick="toggleSonido()"
             title="Silenciar" aria-label="Silenciar">🔊</button>
@@ -672,7 +712,11 @@
 <script src="js/estado.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/guardado.js"></script>
+<script src="js/cuentas.js"></script>
 <script src="js/camara.js"></script>
+<script src="js/modelos.js"></script>
+<script src="js/personas.js"></script>
+<script src="js/calle3d.js"></script>
 <script src="js/escena.js"></script>
 <script src="js/interfaz.js"></script>
 <script src="js/cliente.js"></script>
