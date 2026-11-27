@@ -91,6 +91,10 @@ js/estado.js        Datos del juego, economía y demanda (acá se ajusta la difi
 js/audio.js         Sonidos y música
 js/guardado.js      Guardar / cargar / borrar en Firestore
 js/camara.js        Primera persona, teclado y controles táctiles
+js/paquetes.js      Carga de los modelos 3D empaquetados (y respaldo con los .obj)
+js/modelos.js       Modelos del kiosco y orden de carga de los gráficos
+js/personas.js      La gente del barrio (modelos de Blender)
+js/calle3d.js       La calle y la reja del kiosco (modelos de Blender)
 js/escena.js        Dibujado 3D del kiosco y la calle
 js/interfaz.js      HUD, panel de gestión, metas, pantalla de inicio
 js/cliente.js       Los clientes del barrio y sus historias
@@ -103,7 +107,20 @@ js/juego.js         Arranque y bucle de p5.js
 js/firebase.js      Configuración de Firebase (módulo)
 firestore.rules     Reglas de seguridad de la base de datos
 src/audio/sonidos/  Efectos y música
+src/modelos/        Modelos de Blender (.obj) y sus texturas
+src/modelos/paquetes/  Los .obj empaquetados que usa el juego (se generan, no se editan)
+herramientas/armar_paquetes.py  Arma los paquetes a partir de los .obj
 ```
+
+## Modelos 3D: cuando cambies o agregues un .obj
+
+El juego no baja los `.obj` sueltos: usa tres paquetes comprimidos (`kiosco`, `personas` y `calle`) que pesan 2 MB en vez de 17 MB y no hace falta leerlos línea por línea. Después de exportar un modelo desde Blender, desde la carpeta `juego/` corré:
+
+```powershell
+python herramientas/armar_paquetes.py
+```
+
+Si te olvidás, el juego igual anda: los modelos que no están en el paquete se bajan como `.obj`, solo que más lento. Las texturas sin transparencia van en `.jpg` (pesan mucho menos que en `.png`).
 
 ## Ajustar la dificultad
 
@@ -123,7 +140,6 @@ Con los valores actuales, una simulación de miles de partidas dio esto: un juga
 
 ## Pendientes conocidos
 
-- **Comprimir `src/audio/sonidos/ambiente.mp3`** (pesa ~15 MB). Ya no frena el arranque porque baja en segundo plano, pero conviene pasarlo a mono 64–96 kbps con Audacity o un conversor online. Debería quedar en 1–2 MB.
 - **Robos:** las armas, la cámara de seguridad y las "represalias" del capo se mencionan, pero el juego todavía no tiene un evento de robo. Hoy la única arma que cambia algo es la pistola, en el final del sicario.
 - La relación con el hermano cambia los mensajes, pero no los finales.
 

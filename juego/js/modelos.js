@@ -8,32 +8,55 @@
 // Se cargan DESPUÉS de setup(), sin trabar el arranque:
 // mientras no terminan de bajar (o si falla alguno), el juego
 // sigue usando los dibujos viejos hechos con box() y cylinder().
+//
+// Los .obj vienen empaquetados (ver paquetes.js): kiosco, personas
+// y calle son 3 archivos comprimidos en vez de 85 .obj sueltos.
 // ==========================================================
 
 const RUTA_MODELOS  = 'src/modelos/';
 const RUTA_TEXTURAS = 'src/texturas/';
 
 // nombre del .obj  →  imagen con su textura
+// (las que no tienen transparencia van en .jpg: pesan mucho menos)
 const LISTA_MODELOS = {
-  heladera:     'heladera.png',      // gabinete, marco y manija
+  heladera:     'heladera.jpg',      // gabinete, marco y manija
   heladera_luz: 'heladera_luz.jpg',  // interior con luz propia
   gondola:      'gondola.jpg',       // machimbre, estante y panel perforado
-  gondola_deco: 'gondola_deco.png',  // tiras de golosinas, cartel y reloj
-  alfajor:      'alfajor.png',
+  gondola_deco: 'gondola_deco.jpg',  // tiras de golosinas, cartel y reloj
+  alfajor:      'alfajor.jpg',
   chocolate:    'chocolate.png',
-  chicles:      'chicles.png',
-  gaseosa:      'gaseosa.png',
-  agua:         'agua.png',
-  jugo:         'jugo.png',
-  papas:        'papas.png',
-  palitos:      'palitos.png'
+  chicles:      'chicles.jpg',
+  gaseosa:      'gaseosa.jpg',
+  agua:         'agua.jpg',
+  jugo:         'jugo.jpg',
+  papas:        'papas.jpg',
+  palitos:      'palitos.jpg'
 };
 
 // Acá se van guardando a medida que cargan:
 // MODELOS.heladera = { geo: p5.Geometry, tex: p5.Image, listo: true }
 const MODELOS = {};
 
-function cargarModelos3D() {
+// ----------------------------------------------------------
+// Orden de carga: primero lo que se ve al entrar (el kiosco),
+// después la gente y la calle, y recién al final la música
+// (audio.js espera el aviso "graficosListos"). Así lo importante
+// no comparte la conexión con la canción de 6 MB.
+// ----------------------------------------------------------
+async function cargarModelos3D() {
+  await cargarKiosco3D();
+
+  // La gente del barrio (personas.js) y la calle (calle3d.js), juntas
+  await Promise.all([cargarPersonas3D(), cargarCalle3D()]);
+
+  window.graficosListos = true;
+  window.dispatchEvent(new Event('graficosListos'));
+}
+
+async function cargarKiosco3D() {
+  const pedidos = [];
+  const texturas = [];
+
   for (const nombre in LISTA_MODELOS) {
     const m = { geo: null, tex: null, listo: false };
     MODELOS[nombre] = m;
@@ -41,43 +64,48 @@ function cargarModelos3D() {
     // El modelo está listo recién cuando llegaron LAS DOS partes
     const revisar = () => { m.listo = (m.geo !== null && m.tex !== null); };
 
-    loadModel(RUTA_MODELOS + nombre + '.obj', false,
-      geo => { m.geo = geo; revisar(); },
-      () => console.warn('No cargó el modelo ' + nombre + ': se usa el dibujo viejo')
-    );
-    loadImage(RUTA_MODELOS + LISTA_MODELOS[nombre],
-      img => { m.tex = img; revisar(); },
-      () => console.warn('No cargó la textura de ' + nombre)
+    pedidos.push({
+      nombre,
+      obj: RUTA_MODELOS + nombre + '.obj',
+      alLlegar: geo => { m.geo = geo; revisar(); }
+    });
+    texturas.push(
+      cargarImagen(RUTA_MODELOS + LISTA_MODELOS[nombre])
+        .then(img => { m.tex = img; revisar(); })
+        .catch(() => console.warn('No cargó la textura de ' + nombre))
     );
   }
 
   // Texturas de materiales renderizadas en Blender: cuando llegan,
   // reemplazan a las procedurales de generarTexturas().
-  cargarTexturaMaterial('madera.jpg',        img => texturaMadera = img);
-  cargarTexturaMaterial('madera_oscura.jpg', img => texturaMaderaOscura = img);
-  cargarTexturaMaterial('pared.jpg',         img => texturaPared = img);
-  cargarTexturaMaterial('metal.jpg',         img => texturaMetal = img);
-  cargarTexturaMaterial('piso.jpg',          img => texturaPisoDetalle = img);
+  texturas.push(
+    cargarTexturaMaterial('madera.jpg',        img => texturaMadera = img),
+    cargarTexturaMaterial('madera_oscura.jpg', img => texturaMaderaOscura = img),
+    cargarTexturaMaterial('pared.jpg',         img => texturaPared = img),
+    cargarTexturaMaterial('metal.jpg',         img => texturaMetal = img),
+    cargarTexturaMaterial('piso.jpg',          img => texturaPisoDetalle = img)
+  );
 
-  // La gente del barrio (está en personas.js)
-  cargarPersonas3D();
-
-  // La calle de la villa y la reja del kiosco (están en calle3d.js)
-  cargarCalle3D();
+  // Las imágenes bajan mientras se arma el paquete
+  await Promise.all([cargarGrupoDeModelos('kiosco', pedidos), ...texturas]);
 }
 
 function cargarTexturaMaterial(archivo, alCargar) {
-  loadImage(RUTA_TEXTURAS + archivo, alCargar,
-    () => console.warn('No cargó ' + archivo + ': queda la textura procedural'));
+  return cargarImagen(RUTA_TEXTURAS + archivo)
+    .then(alCargar)
+    .catch(() => console.warn('No cargó ' + archivo + ': queda la textura procedural'));
 }
 
 function modeloListo(nombre) {
   return MODELOS[nombre] !== undefined && MODELOS[nombre].listo;
 }
 
-// Dibuja un modelo en la posición actual (usar dentro de push/pop)
+// Dibuja un modelo en la posición actual (usar dentro de push/pop).
+// Si todavía no llegó (geometría o textura), no dibuja nada: texture()
+// con una imagen que no existe es justo lo que congelaba el juego.
 function dibujarModelo(nombre) {
   const m = MODELOS[nombre];
+  if (!m || !m.listo) return;
   noStroke();
   texture(m.tex);
   model(m.geo);

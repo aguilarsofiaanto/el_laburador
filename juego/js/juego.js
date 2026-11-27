@@ -54,19 +54,41 @@ function setup() {
 
 // p5.js ejecuta draw() ~60 veces por segundo.
 // Todo lo que se ve se redibuja en cada pasada.
+//
+// IMPORTANTE: si draw() tira un error, p5 deja de llamarlo y el juego
+// queda congelado para siempre (eso pasaba al arrancar, cuando un
+// modelo 3D llegaba antes que otro). Por eso el cuadro va dentro de
+// un try/catch: si algo falla, se pierde ESE cuadro y nada más.
+let erroresDeDibujo = 0;
+
 function draw() {
-  background(10, 9, 8);
+  // Cuántos push() hay abiertos al empezar el cuadro. Si un error corta
+  // el cuadro a la mitad, quedan push() sin su pop(): se cierran en el
+  // catch para que no se acumulen cuadro tras cuadro.
+  const pushAbiertos = p5.instance._styles.length;
 
-  actualizarMouseFijado();
-  aplicarIluminacion();
-  aplicarCamaraPrimeraPersona();
+  try {
+    background(10, 9, 8);
 
-  dibujarEscena();
+    actualizarMouseFijado();
+    aplicarIluminacion();
+    aplicarCamaraPrimeraPersona();
 
-  actualizarPromptInteraccion();
-  actualizarPromptPuerta();
-  actualizarControlesTactiles();
-  actualizarBotonCelular();
+    dibujarEscena();
+
+    actualizarPromptInteraccion();
+    actualizarPromptPuerta();
+    actualizarControlesTactiles();
+    actualizarBotonCelular();
+  } catch (error) {
+    while (p5.instance._styles.length > pushAbiertos) pop();
+
+    // Se avisa una sola vez, para no llenar la consola 60 veces por segundo
+    erroresDeDibujo++;
+    if (erroresDeDibujo === 1) {
+      console.error('Falló un cuadro del dibujo (el juego sigue andando):', error);
+    }
+  }
 }
 
 // Se ejecuta cuando cambia el tamaño de la ventana

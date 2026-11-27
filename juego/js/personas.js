@@ -35,7 +35,12 @@ const PIVOTES_PERSONAS = {
 // nombre -> { tex, piezas: { cuerpo: p5.Geometry, ... }, listo }
 const MODELOS_PERSONAS = {};
 
-function cargarPersonas3D() {
+// Las 60 piezas salen del paquete "personas" (ver paquetes.js).
+// Devuelve una promesa que termina cuando llegó todo.
+async function cargarPersonas3D() {
+  const pedidos = [];
+  const texturas = [];
+
   for (const nombre of PERSONAS) {
     const p = { tex: null, piezas: {}, faltan: PIEZAS.length + 1, listo: false };
     MODELOS_PERSONAS[nombre] = p;
@@ -46,16 +51,22 @@ function cargarPersonas3D() {
       if (p.faltan === 0) p.listo = true;
     };
 
-    loadImage(RUTA_PERSONAS + 'persona_' + nombre + '.png',
-      img => { p.tex = img; llego(); },
-      () => console.warn('No cargó la textura de ' + nombre));
+    texturas.push(
+      cargarImagen(RUTA_PERSONAS + 'persona_' + nombre + '.jpg')
+        .then(img => { p.tex = img; llego(); })
+        .catch(() => console.warn('No cargó la textura de ' + nombre))
+    );
 
     for (const pieza of PIEZAS) {
-      loadModel(RUTA_PERSONAS + 'persona_' + nombre + '_' + pieza + '.obj', false,
-        geo => { p.piezas[pieza] = geo; llego(); },
-        () => console.warn('No cargó ' + nombre + ' (' + pieza + ')'));
+      pedidos.push({
+        nombre: 'persona_' + nombre + '_' + pieza,
+        obj: RUTA_PERSONAS + 'persona_' + nombre + '_' + pieza + '.obj',
+        alLlegar: geo => { p.piezas[pieza] = geo; llego(); }
+      });
     }
   }
+
+  await Promise.all([cargarGrupoDeModelos('personas', pedidos), ...texturas]);
 }
 
 function personaLista(nombre) {
@@ -72,6 +83,7 @@ function personaLista(nombre) {
 // ----------------------------------------------------------
 function dibujarPersona(nombre, x, z, giro, modo = 'quieto', vel = 0.5, desfase = 0) {
   const p = MODELOS_PERSONAS[nombre];
+  if (!p || !p.listo) return;   // si no llegó entera, no se dibuja (nunca texture(null))
   const piv = PIVOTES_PERSONAS[nombre];
   const t = frameCount + desfase;
 
