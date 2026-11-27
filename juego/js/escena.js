@@ -555,8 +555,11 @@ function dibujarEstanteLateral(x, z) {
 
     // Con los modelos de Blender cargados, el estante se llena con
     // productos de verdad (los que entran de alto en cada nivel).
-    if (modeloListo('jugo')) {
-      const relleno = ['papas', 'jugo', 'chicles', 'palitos', 'alfajor', 'chocolate'];
+    // Tienen que estar listos LOS SEIS: antes solo se preguntaba por
+    // el jugo, y si el jugo llegaba antes que los demás, se intentaba
+    // dibujar un modelo sin textura y el juego se congelaba.
+    const relleno = ['papas', 'jugo', 'chicles', 'palitos', 'alfajor', 'chocolate'];
+    if (relleno.every(modeloListo)) {
       for (let i = 0; i < items; i++) {
         const id = relleno[(n * 2 + i) % relleno.length];
         push();

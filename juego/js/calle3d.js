@@ -47,30 +47,54 @@ const PANELES_REJA_KIOSCO = [
 ];
 const Z_REJA_KIOSCO = 344;
 
-function cargarCalle3D() {
+// Las 13 piezas salen del paquete "calle" (ver paquetes.js).
+// Devuelve una promesa que termina cuando llegó todo.
+async function cargarCalle3D() {
+  const pedidos = [];
+  const texturas = [];
+
   for (const nombre of PIEZAS_CALLE) {
     const p = { geo: null, tex: null, listo: false };
     CALLE[nombre] = p;
     const revisar = () => { p.listo = (p.geo !== null && p.tex !== null); };
 
-    loadModel(RUTA_CALLE + 'calle_' + nombre + '.obj', false,
-      geo => { p.geo = geo; revisar(); },
-      () => console.warn('No cargó la calle (' + nombre + '): queda la calle vieja'));
-    loadImage(RUTA_CALLE + 'calle_' + nombre + '.jpg',
-      img => { p.tex = img; revisar(); },
-      () => console.warn('No cargó la textura de ' + nombre));
+    pedidos.push({
+      nombre: 'calle_' + nombre,
+      obj: RUTA_CALLE + 'calle_' + nombre + '.obj',
+      alLlegar: geo => { p.geo = geo; revisar(); }
+    });
+    texturas.push(
+      cargarImagen(RUTA_CALLE + 'calle_' + nombre + '.jpg')
+        .then(img => { p.tex = img; revisar(); })
+        .catch(() => console.warn('No cargó la textura de ' + nombre))
+    );
   }
 
-  loadImage(RUTA_CALLE + 'alambrado.png', img => { texAlambrado = img; });
+  // El alambrado es el único con transparencia: sigue siendo .png
+  texturas.push(
+    cargarImagen(RUTA_CALLE + 'alambrado.png')
+      .then(img => { texAlambrado = img; })
+      .catch(() => console.warn('No cargó la textura del alambrado'))
+  );
 
-  loadModel(RUTA_CALLE + 'reja_kiosco.obj', false, geo => {
-    REJA_KIOSCO.geo = geo;
-    REJA_KIOSCO.listo = REJA_KIOSCO.tex !== null;
+  pedidos.push({
+    nombre: 'reja_kiosco',
+    obj: RUTA_CALLE + 'reja_kiosco.obj',
+    alLlegar: geo => {
+      REJA_KIOSCO.geo = geo;
+      REJA_KIOSCO.listo = REJA_KIOSCO.tex !== null;
+    }
   });
-  loadImage(RUTA_CALLE + 'reja_kiosco.png', img => {
-    REJA_KIOSCO.tex = img;
-    REJA_KIOSCO.listo = REJA_KIOSCO.geo !== null;
-  });
+  texturas.push(
+    cargarImagen(RUTA_CALLE + 'reja_kiosco.jpg')
+      .then(img => {
+        REJA_KIOSCO.tex = img;
+        REJA_KIOSCO.listo = REJA_KIOSCO.geo !== null;
+      })
+      .catch(() => console.warn('No cargó la textura de la reja'))
+  );
+
+  await Promise.all([cargarGrupoDeModelos('calle', pedidos), ...texturas]);
 }
 
 // La calle nueva se usa recién cuando llegaron TODAS sus piezas:

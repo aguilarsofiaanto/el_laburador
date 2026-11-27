@@ -158,8 +158,13 @@ function puedeMirarJugador() {
     !escribiendoEnCampo() && (!panel || panel.classList.contains('oculto'));
 }
 
+// Gira la cámara con el mouse (arrastrando o con el mouse fijado).
+// Horizontal: mover el mouse a la derecha mira a la derecha. Antes
+// era "+=" y quedaba al revés: con camAngulo más grande la cámara
+// mira hacia -X, que es la izquierda (la tecla A también va a -X).
+// Vertical: no cambia (y se puede invertir con la opción del menú).
 function girarVista(dx, dy) {
-  camAngulo += dx * 0.4;
+  camAngulo -= dx * 0.4;
   const direccionVertical = mouseInvertido ? -1 : 1;
   camPitch = constrain(camPitch - dy * 0.2 * direccionVertical, -35, 35);
 }

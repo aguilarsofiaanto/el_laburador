@@ -42,7 +42,7 @@ function guardarPreferenciaSilencio() {
 
 // ==========================================================
 // CARGA (llamar desde preload() en juego.js)
-// La música de ambiente (el archivo más pesado, ~15 MB) NO se
+// La música de ambiente (el archivo más pesado, ~6 MB) NO se
 // carga acá: preload() frena el arranque del juego hasta que todo
 // termina de bajar. Se baja en segundo plano desde setup().
 // ==========================================================
@@ -57,18 +57,26 @@ function precargarAudio() {
 }
 
 function audioListoInicializar() {
-  // Música de ambiente en segundo plano: arranca cuando termina de bajar
-  sonidos.ambiente = loadSound(RUTA_AUDIO + 'ambiente.mp3', () => {
-    sonidos.ambiente.setLoop(true);
-    sonidos.ambiente.setVolume(audioState.volumenMusica * audioState.volumenGeneral);
-    if (audioState.musicaPedida) iniciarMusicaAmbiente();
-  });
+  // Música de ambiente en segundo plano, pero DESPUÉS de los gráficos:
+  // modelos.js avisa con "graficosListos". Si se bajara al mismo tiempo,
+  // le sacaría velocidad a los modelos y el kiosco tardaría más en verse.
+  if (window.graficosListos) cargarMusicaAmbiente();
+  else window.addEventListener('graficosListos', cargarMusicaAmbiente, { once: true });
 
   if (sonidos.pasos) sonidos.pasos.setLoop(true);
   if (sonidos.correr) sonidos.correr.setLoop(true);
   // pasosImportante NO va en loop: suena una vez cuando llega un cliente
 
   audioState.cargado = true;
+}
+
+// Arranca sola apenas termina de bajar (si el jugador ya entró al kiosco)
+function cargarMusicaAmbiente() {
+  sonidos.ambiente = loadSound(RUTA_AUDIO + 'ambiente.mp3', () => {
+    sonidos.ambiente.setLoop(true);
+    sonidos.ambiente.setVolume(audioState.volumenMusica * audioState.volumenGeneral);
+    if (audioState.musicaPedida) iniciarMusicaAmbiente();
+  });
 }
 
 // ==========================================================
